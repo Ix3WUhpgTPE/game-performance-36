@@ -1,32 +1,22 @@
 import logging
+from logging.handlers import TimedRotatingFileHandler
 
-class Logger:
-    def __init__(self, name, level=logging.INFO):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(level)
-        self.handler = logging.StreamHandler()
-        self.formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        self.handler.setFormatter(self.formatter)
-        self.logger.addHandler(self.handler)
 
-    def debug(self, message):
-        self.logger.debug(message)
+def setup_logger(name, log_file, level=logging.INFO):
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler = TimedRotatingFileHandler(log_file, when='midnight', interval=1)
+    handler.setFormatter(formatter)
+    handler.suffix = '%Y-%m-%d'
 
-    def info(self, message):
-        self.logger.info(message)
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.addHandler(handler)
 
-    def warning(self, message):
-        self.logger.warning(message)
+    return logger
 
-    def error(self, message):
-        self.logger.error(message)
 
-    def critical(self, message):
-        self.logger.critical(message)
-
-    def set_level(self, level):
-        self.logger.setLevel(level)
-
-    def remove_handler(self):
-        self.logger.removeHandler(self.handler)
-        self.handler.close()
+if __name__ == '__main__':
+    logger = setup_logger('my_logger', 'game_play.log')
+    logger.info('Logger initialized and ready.')
+    logger.error('This is a test error message.')
+    logger.debug('Debugging information is logged here.')
