@@ -1,28 +1,41 @@
-class GamePerformanceError(Exception):
-    """Custom exception for game performance issues."""
+class GameError(Exception):
+    """Base class for game-related exceptions."""
     def __init__(self, message):
         super().__init__(message)
+        self.message = message
 
-class InvalidScoreError(GamePerformanceError):
-    """Exception raised for invalid score inputs."""
-    def __init__(self, score):
-        message = f"Invalid score: {score}. Score must be non-negative."
-        super().__init__(message)
+class InputError(GameError):
+    """Raised for errors in user input."""
+    pass
 
-class ResourceLimitExceeded(GamePerformanceError):
-    """Exception raised when resource limits are exceeded."""
-    def __init__(self, resource, limit):
-        message = f"Resource limit exceeded: {resource} (Limit: {limit})"
-        super().__init__(message)
+class ConnectionError(GameError):
+    """Raised when a game connection fails."""
+    pass
 
-class UnsupportedOperationError(GamePerformanceError):
-    """Exception raised for unsupported operations."""
-    def __init__(self, operation):
-        message = f"Unsupported operation: {operation}"
-        super().__init__(message)
+class ResourceError(GameError):
+    """Raised for missing or invalid game resources."""
+    def __init__(self, resource, message='Resource not found or invalid.'):
+        super().__init__(f"{message}: {resource}")
+        self.resource = resource
 
-class ConfigurationError(GamePerformanceError):
-    """Exception raised for configuration errors."""
-    def __init__(self, config_key):
-        message = f"Configuration error: Missing key {config_key}"
-        super().__init__(message)
+class LevelError(GameError):
+    """Raised for invalid game level operations."""
+    def __init__(self, level, message='Invalid level operation.'):
+        super().__init__(f"{message}: {level}")
+        self.level = level
+
+# Example use of custom exceptions
+try:
+    raise InputError('Invalid move detected')
+except InputError as e:
+    print(e)
+
+try:
+    raise ResourceError('sword', 'Item is not available')
+except ResourceError as e:
+    print(e)
+
+try:
+    raise LevelError(5, 'Level does not exist')
+except LevelError as e:
+    print(e)
