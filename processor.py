@@ -1,33 +1,28 @@
-import random
-import json
-import sys
+import numpy as np
 
-def validate_input(user_input):
-    if not user_input.isdigit():
-        raise ValueError('Input must be a number.')
-    number = int(user_input)
-    if not (1 <= number <= 100):
-        raise ValueError('Input must be between 1 and 100.')
-    return number
+def process_game_data(data):
+    cleaned_data = clean_data(data)
+    optimized_results = optimize_performance(cleaned_data)
+    return optimized_results
 
-def process_user_input(user_input):
-    try:
-        valid_number = validate_input(user_input)
-        print(f'Processing number: {valid_number}')
-        # Simulating some processing logic
-        result = random.randint(1, 100) + valid_number
-        return {'result': result}
-    except ValueError as e:
-        return {'error': str(e)}
 
-def main_loop():
-    while True:
-        user_input = input('Enter a number (1-100 or q to quit): ')
-        if user_input.lower() == 'q':
-            print('Exiting the program.')
-            break
-        output = process_user_input(user_input)
-        print(json.dumps(output))
+def clean_data(data):
+    # Filtering out entries with missing or corrupt data
+    return [entry for entry in data if validate_entry(entry)]
 
-if __name__ == '__main__':
-    main_loop()
+
+def validate_entry(entry):
+    return all(key in entry for key in ('fps', 'latency', 'score'))
+
+
+def optimize_performance(data):
+    # Utilizing NumPy for performance gains with large data sets
+    fps = np.array([entry['fps'] for entry in data])
+    latency = np.array([entry['latency'] for entry in data])
+    scores = np.array([entry['score'] for entry in data])
+
+    avg_fps = np.mean(fps)
+    avg_latency = np.mean(latency)
+    total_score = np.sum(scores)
+
+    return {'avg_fps': avg_fps, 'avg_latency': avg_latency, 'total_score': total_score}
