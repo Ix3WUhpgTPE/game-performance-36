@@ -1,29 +1,31 @@
-from typing import Final
+FPS_TARGET = 60
 
-# Game configuration constants
-SCREEN_WIDTH: Final[int] = 800
-SCREEN_HEIGHT: Final[int] = 600
-FPS: Final[int] = 60
+# Constants for game settings
+VIDEOMODE_WIDTH = 1920
+VIDEOMODE_HEIGHT = 1080
+FULLSCREEN_MODE = True
 
-# Colors in RGB format
-BLACK: Final[tuple[int, int, int]] = (0, 0, 0)
-WHITE: Final[tuple[int, int, int]] = (255, 255, 255)
-RED: Final[tuple[int, int, int]] = (255, 0, 0)
-GREEN: Final[tuple[int, int, int]] = (0, 255, 0)
-BLUE: Final[tuple[int, int, int]] = (0, 0, 255)
+# Performance-related constants
+MAX_FPS = 120
+MIN_FPS = 30
+V_SYNC = True
 
-# Game states
-class GameState:
-    MAIN_MENU: Final[int] = 0
-    PLAYING: Final[int] = 1
-    GAME_OVER: Final[int] = 2
-    PAUSED: Final[int] = 3
+# Audio constants
+MAX_VOLUME = 1.0
+MIN_VOLUME = 0.0
+DEFAULT_VOLUME = 0.5
 
-# Paths
-ASSET_PATH: Final[str] = "assets/"
-CONFIG_PATH: Final[str] = "config/settings.json"
+# Physics constants
+GRAVITY = 9.81
+FRICTION = 0.5
 
-# Player settings
-PLAYER_START_X: Final[int] = SCREEN_WIDTH // 2
-PLAYER_START_Y: Final[int] = SCREEN_HEIGHT // 2
-PLAYER_SPEED: Final[float] = 5.0
+# Color constants
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
+
+# Frame timing constants
+FRAME_TIME = 1 / MAX_FPS
+SLEEP_TIME = FRAME_TIME * 0.75
