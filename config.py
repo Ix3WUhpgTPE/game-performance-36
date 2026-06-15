@@ -1,30 +1,24 @@
 import json
 import os
 
-def load_config(file_path='config.json', defaults=None):
-    if defaults is None:
-        defaults = {}
-    # Load configuration from file if it exists
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as f:
-            try:
-                config = json.load(f)
-            except json.JSONDecodeError:
-                print('Invalid JSON in configuration file. Using defaults.')
-                return defaults
-    else:
-        print('Configuration file not found. Using defaults.')
-        return defaults
+def load_config(file_path, default_config):
+    if not os.path.exists(file_path):
+        return default_config
+    with open(file_path, 'r') as file:
+        try:
+            user_config = json.load(file)
+        except json.JSONDecodeError:
+            print('Error reading JSON, using defaults')
+            return default_config
+    return {**default_config, **user_config}
 
-    # Merge defaults with loaded config
-    return {**defaults, **config}
+def save_config(file_path, config):
+    with open(file_path, 'w') as file:
+        json.dump(config, file, indent=4)
 
-# Example usage
 if __name__ == '__main__':
-    default_settings = {
-        'volume': 70,
-        'resolution': '1920x1080',
-        'fullscreen': True,
-    }
-    config = load_config(defaults=default_settings)
-    print('Loaded Configuration:', config)
+    default_config = {'volume': 50, 'resolution': '1920x1080', 'fullscreen': True}
+    config_path = 'config.json'
+    final_config = load_config(config_path, default_config)
+    print(final_config)
+    save_config(config_path, final_config)
