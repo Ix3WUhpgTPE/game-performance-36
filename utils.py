@@ -1,24 +1,45 @@
-import random
-import numpy as np
+from typing import List, Optional
 
-def random_position(bounds):
-    return (random.uniform(bounds[0], bounds[1]), random.uniform(bounds[2], bounds[3]))
 
-def distance(point1, point2):
-    return np.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
+def calculate_average(scores: List[Optional[int]]) -> float:
+    """
+    Calculate the average of a list of scores.
+    Ignores None values in the list.
 
-def clamp(value, min_value, max_value):
-    return max(min(value, max_value), min_value)
+    Parameters:
+    scores (List[Optional[int]]): List of scores which may include None.
 
-def lerp(start, end, t):
-    return start + (end - start) * t
+    Returns:
+    float: The average score, returns 0.0 if no valid scores are present.
+    """
+    valid_scores = [score for score in scores if score is not None]
+    return sum(valid_scores) / len(valid_scores) if valid_scores else 0.0
 
-def is_within_bounds(point, bounds):
-    return bounds[0] <= point[0] <= bounds[1] and bounds[2] <= point[1] <= bounds[3]
 
-if __name__ == '__main__':
-    print(random_position((0, 100, 0, 100)))
-    print(distance((0, 0), (3, 4)))
-    print(clamp(10, 1, 5))
-    print(lerp(0, 100, 0.5))
-    print(is_within_bounds((50, 50), (0, 100, 0, 100)))
+def format_player_name(name: str) -> str:
+    """
+    Format the player's name by capitalizing each word.
+    
+    Parameters:
+    name (str): The player's name to format.
+
+    Returns:
+    str: The formatted name.
+    """
+    return ' '.join(word.capitalize() for word in name.split())
+
+
+def generate_player_id(length: int = 8) -> str:
+    """
+    Generate a random player ID consisting of letters and digits.
+    
+    Parameters:
+    length (int): The length of the player ID. Defaults to 8.
+
+    Returns:
+    str: A random string of the specified length.
+    """
+    import random
+    import string
+    characters = string.ascii_letters + string.digits
+    return ''.join(random.choice(characters) for _ in range(length))
