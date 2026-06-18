@@ -1,32 +1,35 @@
 import random
-import math
+import time
 
-def calculate_distance(point_a, point_b):
-    return math.sqrt((point_b[0] - point_a[0]) ** 2 + (point_b[1] - point_a[1]) ** 2)
 
-def choose_random_item(items):
-    return random.choice(items)
+def wait_for(seconds):
+    time.sleep(seconds)
 
-def clamp(value, min_value, max_value):
-    return max(min_value, min(value, max_value))
 
-def is_point_in_bounds(point, bounds):
-    return bounds[0][0] <= point[0] <= bounds[1][0] and bounds[0][1] <= point[1] <= bounds[1][1]
+def random_choice(choices):
+    return random.choice(choices)
 
-class Vector:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
 
-    def add(self, other):
-        return Vector(self.x + other.x, self.y + other.y)
+def calculate_avg(numbers):
+    if not numbers:
+        return 0
+    return sum(numbers) / len(numbers)
 
-    def subtract(self, other):
-        return Vector(self.x - other.x, self.y - other.y)
 
-    def length(self):
-        return math.sqrt(self.x ** 2 + self.y ** 2)
+def time_function(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        print(f"Function '{func.__name__}' executed in {{end_time - start_time:.4f}} seconds")
+        return result
+    return wrapper
 
-    def normalize(self):
-        length = self.length()
-        return Vector(self.x / length, self.y / length) if length > 0 else Vector(0, 0)
+
+def format_score(score):
+    return f"Score: {score:.2f}"
+
+
+def shuffle_list(lst):
+    random.shuffle(lst)
+    return lst
