@@ -1,23 +1,39 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+import sys
 
-def setup_logger(log_file='game.log', max_bytes=5 * 1024 * 1024, backup_count=3):
-    logger = logging.getLogger('game_logger')
-    logger.setLevel(logging.DEBUG)
-    
-    # Create a directory for logs if it doesn't exist
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
-    
-    handler = RotatingFileHandler(os.path.join('logs', log_file), maxBytes=max_bytes, backupCount=backup_count)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    
-    logger.addHandler(handler)
-    return logger
+class Logger:
+    def __init__(self, name='GameLogger', level=logging.INFO):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
+        ch = logging.StreamHandler(sys.stdout)
+        ch.setLevel(level)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        ch.setFormatter(formatter)
+        self.logger.addHandler(ch)
 
-# Example usage.
+    def log_info(self, message):
+        self.logger.info(message)
+
+    def log_warning(self, message):
+        self.logger.warning(message)
+
+    def log_error(self, message):
+        self.logger.error(message)
+
+    def validate_input(self, user_input):
+        if not isinstance(user_input, str):
+            self.log_error('Input must be a string')
+            return False
+        if user_input.strip() == '':
+            self.log_warning('Empty input received')
+            return False
+        return True
+
 if __name__ == '__main__':
-    log = setup_logger()
-    log.info('Logger is set up and ready.')
+    logger = Logger()
+    inputs = ['valid input', '', 123, None]
+    for inp in inputs:
+        if logger.validate_input(inp):
+            logger.log_info(f'Valid input: {inp}')
+        else:
+            logger.log_warning(f'Invalid input: {inp}')
