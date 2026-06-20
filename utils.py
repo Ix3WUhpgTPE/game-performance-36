@@ -1,45 +1,30 @@
-from typing import List, Optional
+import random
+import math
 
+def calculate_distance(point1, point2):
+    return math.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
 
-def calculate_average(scores: List[Optional[int]]) -> float:
-    """
-    Calculate the average of a list of scores.
-    Ignores None values in the list.
+def generate_random_position(bound_x, bound_y):
+    return (random.uniform(0, bound_x), random.uniform(0, bound_y))
 
-    Parameters:
-    scores (List[Optional[int]]): List of scores which may include None.
+def clamp(value, min_value, max_value):
+    return max(min(value, max_value), min_value)
 
-    Returns:
-    float: The average score, returns 0.0 if no valid scores are present.
-    """
-    valid_scores = [score for score in scores if score is not None]
-    return sum(valid_scores) / len(valid_scores) if valid_scores else 0.0
+def interpolate(start, end, factor):
+    return start + (end - start) * factor
 
+def lerp_color(color1, color2, factor):
+    return (
+        int(interpolate(color1[0], color2[0], factor)),
+        int(interpolate(color1[1], color2[1], factor)),
+        int(interpolate(color1[2], color2[2], factor))
+    )
 
-def format_player_name(name: str) -> str:
-    """
-    Format the player's name by capitalizing each word.
-    
-    Parameters:
-    name (str): The player's name to format.
+def scale_vector(vector, scale):
+    return (vector[0] * scale, vector[1] * scale)
 
-    Returns:
-    str: The formatted name.
-    """
-    return ' '.join(word.capitalize() for word in name.split())
-
-
-def generate_player_id(length: int = 8) -> str:
-    """
-    Generate a random player ID consisting of letters and digits.
-    
-    Parameters:
-    length (int): The length of the player ID. Defaults to 8.
-
-    Returns:
-    str: A random string of the specified length.
-    """
-    import random
-    import string
-    characters = string.ascii_letters + string.digits
-    return ''.join(random.choice(characters) for _ in range(length))
+def angle_between_vectors(v1, v2):
+    dot_product = v1[0] * v2[0] + v1[1] * v2[1]
+    mag_v1 = math.sqrt(v1[0] ** 2 + v1[1] ** 2)
+    mag_v2 = math.sqrt(v2[0] ** 2 + v2[1] ** 2)
+    return math.acos(dot_product / (mag_v1 * mag_v2))
