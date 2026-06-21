@@ -1,23 +1,31 @@
 import time
 import random
-import requests
 
-def retry_request(url, retries=3, delay=2):
+def retry_network_operation(func, retries=3, delay=2):
+    """Retry a network operation up to a number of retries with a delay.
+    """
     for attempt in range(retries):
         try:
-            response = requests.get(url)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.HTTPError as err:
-            print(f"HTTP error on attempt {attempt + 1}: {err}")
-        except requests.exceptions.RequestException as err:
-            print(f"Request exception on attempt {attempt + 1}: {err}")
-        time.sleep(delay)
-    print("All retry attempts failed.")
-    return None
+            return func()
+        except Exception as e:
+            print(f'Attempt {attempt + 1} failed: {e}')
+            if attempt < retries - 1:
+                time.sleep(delay * (2 ** attempt))  # Exponential backoff
+    raise Exception('All attempts failed')
 
-# Mocking a network call for demo
+# Sample function to simulate a network operation
+
+def sample_network_operation():
+    if random.choice([True, False]):  # Randomly succeed or fail
+        print('Network operation succeeded')
+        return 'Success'
+    else:
+        raise Exception('Network error')
+
+# Example usage
 if __name__ == '__main__':
-    url = 'https://api.example.com/data'
-    result = retry_request(url)
-    print(result if result else 'Failed to fetch data.')
+    try:
+        result = retry_network_operation(sample_network_operation)
+        print(result)
+    except Exception as e:
+        print(e)
