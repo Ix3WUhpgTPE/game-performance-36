@@ -1,39 +1,51 @@
 import logging
-import sys
+
+# Configure the logger to display messages in the console
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 class Logger:
-    def __init__(self, name='GameLogger', level=logging.INFO):
+    """
+    A simple logger class for logging messages.
+    Supports different levels of logging: DEBUG, INFO, WARNING, ERROR, CRITICAL.
+    """
+    def __init__(self, name: str) -> None:
+        """
+        Initialize the logger with the given name.
+        :param name: Name of the logger.
+        """
         self.logger = logging.getLogger(name)
-        self.logger.setLevel(level)
-        ch = logging.StreamHandler(sys.stdout)
-        ch.setLevel(level)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ch.setFormatter(formatter)
-        self.logger.addHandler(ch)
 
-    def log_info(self, message):
+    def debug(self, message: str) -> None:
+        """
+        Log a message at DEBUG level.
+        :param message: The message to log.
+        """
+        self.logger.debug(message)
+
+    def info(self, message: str) -> None:
+        """
+        Log a message at INFO level.
+        :param message: The message to log.
+        """
         self.logger.info(message)
 
-    def log_warning(self, message):
+    def warning(self, message: str) -> None:
+        """
+        Log a message at WARNING level.
+        :param message: The message to log.
+        """
         self.logger.warning(message)
 
-    def log_error(self, message):
+    def error(self, message: str) -> None:
+        """
+        Log a message at ERROR level.
+        :param message: The message to log.
+        """
         self.logger.error(message)
 
-    def validate_input(self, user_input):
-        if not isinstance(user_input, str):
-            self.log_error('Input must be a string')
-            return False
-        if user_input.strip() == '':
-            self.log_warning('Empty input received')
-            return False
-        return True
-
-if __name__ == '__main__':
-    logger = Logger()
-    inputs = ['valid input', '', 123, None]
-    for inp in inputs:
-        if logger.validate_input(inp):
-            logger.log_info(f'Valid input: {inp}')
-        else:
-            logger.log_warning(f'Invalid input: {inp}')
+    def critical(self, message: str) -> None:
+        """
+        Log a message at CRITICAL level.
+        :param message: The message to log.
+        """
+        self.logger.critical(message)
