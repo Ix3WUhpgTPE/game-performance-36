@@ -1,51 +1,29 @@
 import logging
 
-# Configure the logger to display messages in the console
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# Setting up the logger
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
-class Logger:
-    """
-    A simple logger class for logging messages.
-    Supports different levels of logging: DEBUG, INFO, WARNING, ERROR, CRITICAL.
-    """
-    def __init__(self, name: str) -> None:
-        """
-        Initialize the logger with the given name.
-        :param name: Name of the logger.
-        """
+class GameLogger:
+    def __init__(self, name):
         self.logger = logging.getLogger(name)
 
-    def debug(self, message: str) -> None:
-        """
-        Log a message at DEBUG level.
-        :param message: The message to log.
-        """
+    def debug(self, message):
         self.logger.debug(message)
 
-    def info(self, message: str) -> None:
-        """
-        Log a message at INFO level.
-        :param message: The message to log.
-        """
+    def info(self, message):
         self.logger.info(message)
 
-    def warning(self, message: str) -> None:
-        """
-        Log a message at WARNING level.
-        :param message: The message to log.
-        """
+    def warning(self, message):
         self.logger.warning(message)
 
-    def error(self, message: str) -> None:
-        """
-        Log a message at ERROR level.
-        :param message: The message to log.
-        """
+    def error(self, message):
         self.logger.error(message)
 
-    def critical(self, message: str) -> None:
-        """
-        Log a message at CRITICAL level.
-        :param message: The message to log.
-        """
+    def critical(self, message):
         self.logger.critical(message)
+
+# Utility function to create a logger for a game session
+
+def get_game_logger(game_name):
+    return GameLogger(game_name)
