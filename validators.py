@@ -1,16 +1,39 @@
-def validate_input(user_input):
-    if not isinstance(user_input, str):
-        raise ValueError('Input must be a string.')
-    if not user_input:
-        raise ValueError('Input cannot be empty.')
-    if len(user_input) > 100:
-        raise ValueError('Input too long, max 100 characters.')
+import re
+
+def validate_username(username):
+    regex = r'^[a-zA-Z0-9_]{3,30}$'
+    if re.match(regex, username):
+        return True
+    return False
+
+
+def validate_email(email):
+    regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+    if re.match(regex, email):
+        return True
+    return False
+
+
+def validate_password(password):
+    if len(password) < 8:
+        return False
+    if not re.search(r'[A-Z]', password):
+        return False
+    if not re.search(r'[a-z]', password):
+        return False
+    if not re.search(r'[0-9]', password):
+        return False
     return True
 
-if __name__ == '__main__':
-    try:
-        user_input = input('Enter your command: ')
-        validate_input(user_input)
-        print('Valid input!')
-    except ValueError as e:
-        print(f'Error: {e}')
+
+def validate_age(age):
+    if isinstance(age, int) and 0 <= age <= 120:
+        return True
+    return False
+
+
+def validate_all(username, email, password, age):
+    return (validate_username(username) and 
+            validate_email(email) and 
+            validate_password(password) and 
+            validate_age(age))
