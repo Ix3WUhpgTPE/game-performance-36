@@ -1,39 +1,23 @@
-import re
-
-def validate_username(username):
-    regex = r'^[a-zA-Z0-9_]{3,30}$'
-    if re.match(regex, username):
-        return True
-    return False
-
-
-def validate_email(email):
-    regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
-    if re.match(regex, email):
-        return True
-    return False
-
-
-def validate_password(password):
-    if len(password) < 8:
-        return False
-    if not re.search(r'[A-Z]', password):
-        return False
-    if not re.search(r'[a-z]', password):
-        return False
-    if not re.search(r'[0-9]', password):
-        return False
+def validate_input(user_input):
+    if not isinstance(user_input, str):
+        raise ValueError('Input must be a string')
+    if len(user_input) == 0:
+        raise ValueError('Input cannot be empty')
+    if not user_input.isalnum():
+        raise ValueError('Input must be alphanumeric')
     return True
 
+def main_processing_loop():
+    while True:
+        user_input = input('Enter your command: ')
+        try:
+            validate_input(user_input)
+            process_input(user_input)
+        except ValueError as e:
+            print(f'Input error: {e}')
 
-def validate_age(age):
-    if isinstance(age, int) and 0 <= age <= 120:
-        return True
-    return False
+def process_input(validated_input):
+    print(f'Processing input: {validated_input}')
 
-
-def validate_all(username, email, password, age):
-    return (validate_username(username) and 
-            validate_email(email) and 
-            validate_password(password) and 
-            validate_age(age))
+if __name__ == '__main__':
+    main_processing_loop()
