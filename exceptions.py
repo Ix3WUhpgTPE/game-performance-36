@@ -1,41 +1,22 @@
 class GameError(Exception):
-    """Base class for game-related exceptions."""
-    def __init__(self, message):
+    def __init__(self, message, code):
         super().__init__(message)
-        self.message = message
+        self.code = code
 
-class InputError(GameError):
-    """Raised for errors in user input."""
+class ValidationError(GameError):
     pass
 
 class ConnectionError(GameError):
-    """Raised when a game connection fails."""
     pass
 
-class ResourceError(GameError):
-    """Raised for missing or invalid game resources."""
-    def __init__(self, resource, message='Resource not found or invalid.'):
-        super().__init__(f"{message}: {resource}")
-        self.resource = resource
+class ResourceNotFoundError(GameError):
+    pass
 
-class LevelError(GameError):
-    """Raised for invalid game level operations."""
-    def __init__(self, level, message='Invalid level operation.'):
-        super().__init__(f"{message}: {level}")
-        self.level = level
-
-# Example use of custom exceptions
-try:
-    raise InputError('Invalid move detected')
-except InputError as e:
-    print(e)
-
-try:
-    raise ResourceError('sword', 'Item is not available')
-except ResourceError as e:
-    print(e)
-
-try:
-    raise LevelError(5, 'Level does not exist')
-except LevelError as e:
-    print(e)
+def handle_game_exception(e):
+    if isinstance(e, ValidationError):
+        return {'status': 'error', 'message': str(e), 'code': e.code}
+    elif isinstance(e, ConnectionError):
+        return {'status': 'error', 'message': 'Failed to connect, please try again.', 'code': e.code}
+    elif isinstance(e, ResourceNotFoundError):
+        return {'status': 'error', 'message': 'Requested resource not found.', 'code': e.code}
+    return {'status': 'error', 'message': 'An unexpected error occurred.', 'code': 500}
