@@ -1,29 +1,34 @@
-import time
-import random
+import json
+import os
 
-def retry_operation(max_retries=5, delay=2):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    print(f'Attempt {attempt + 1} failed: {e}')
-                    if attempt < max_retries - 1:
-                        time.sleep(delay + random.uniform(0, 1))  # Exponential backoff
-                    else:
-                        print('All attempts failed')
-                        raise
-        return wrapper
-    return decorator
+def load_game_data(file_path):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Data file not found: {file_path}")
+    with open(file_path, 'r') as file:
+        try:
+            data = json.load(file)
+        except json.JSONDecodeError:
+            raise ValueError(f"Error decoding JSON from {file_path}")
+    return data
 
-@retry_operation(max_retries=3, delay=1)
-def network_request():
-    # Simulating a network operation that may fail
-    if random.random() < 0.7:  # 70% chance to fail
-        raise Exception('Network error')
-    return 'Success!'
+def save_game_data(file_path, data):
+    try:
+        with open(file_path, 'w') as file:
+            json.dump(data, file, indent=4)
+    except IOError:
+        raise IOError(f"Unable to write to {file_path}")
 
+def get_data_statistics(data):
+    stats = {
+        'total_players': len(data['players']),
+        'highest_score': max(player['score'] for player in data['players']),
+        'average_score': sum(player['score'] for player in data['players']) / len(data['players'])
+    }
+    return stats
+
+# Example usage
 if __name__ == '__main__':
-    result = network_request()
-    print(result)
+    example_data = {'players': [{'name': 'Player1', 'score': 100}, {'name': 'Player2', 'score': 200}]}
+    save_game_data('game_data.json', example_data)
+    loaded_data = load_game_data('game_data.json')
+    print(get_data_statistics(loaded_data))
