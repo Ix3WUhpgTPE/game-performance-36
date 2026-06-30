@@ -1,23 +1,26 @@
-def validate_input(user_input):
-    if not isinstance(user_input, str):
-        raise ValueError('Input must be a string')
-    if len(user_input) == 0:
-        raise ValueError('Input cannot be empty')
-    if not user_input.isalnum():
-        raise ValueError('Input must be alphanumeric')
-    return True
+import json
 
-def main_processing_loop():
-    while True:
-        user_input = input('Enter your command: ')
-        try:
-            validate_input(user_input)
-            process_input(user_input)
-        except ValueError as e:
-            print(f'Input error: {e}')
+class Validator:
+    def __init__(self, schema):
+        self.schema = schema
 
-def process_input(validated_input):
-    print(f'Processing input: {validated_input}')
+    def validate(self, data):
+        for key, value in self.schema.items():
+            if key not in data:
+                raise ValueError(f"Missing key: {key}")
+            if not isinstance(data[key], value):
+                raise TypeError(f"Invalid type for {key}: expected {value.__name__}, got {type(data[key]).__name__}")
+        return True
+
+    def validate_json(self, json_string):
+        data = json.loads(json_string)
+        return self.validate(data)
 
 if __name__ == '__main__':
-    main_processing_loop()
+    # Sample schema definition
+    schema = {'player_name': str, 'score': int, 'level': int}
+    v = Validator(schema)
+    sample_data = {'player_name': 'Gamer123', 'score': 1500, 'level': 5}
+    print(v.validate(sample_data))  # Should print True  
+    sample_json = '{"player_name": "Gamer123", "score": 1500, "level": 5}'
+    print(v.validate_json(sample_json))  # Should print True
