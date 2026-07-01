@@ -1,25 +1,45 @@
-class GamePerformance:
+class GameError(Exception):
+    pass
+
+class Player:
+    def __init__(self, name, health=100):
+        if not name:
+            raise GameError('Player name cannot be empty')
+        self.name = name
+        self.health = health
+
+class Game:
     def __init__(self):
-        self.data = []
-        self.cache = {}
+        self.players = []
 
-    def add_score(self, player, score):
-        if player in self.cache:
-            self.cache[player] += score
-        else:
-            self.cache[player] = score
-        self.data.append((player, score))
+    def add_player(self, player_name):
+        try:
+            new_player = Player(player_name)
+            self.players.append(new_player)
+        except GameError as e:
+            print(f'Error adding player: {e}')
 
-    def get_top_scores(self, n=10):
-        sorted_scores = sorted(self.cache.items(), key=lambda x: x[1], reverse=True)
-        return sorted_scores[:n]
+    def start_game(self):
+        if not self.players:
+            raise GameError('Cannot start game with no players')
+        print('Game has started!')
 
-    def clear_cache(self):
-        self.cache.clear()
+    def player_action(self, player_name, action):
+        player = next((p for p in self.players if p.name == player_name), None)
+        if not player:
+            print(f'Player {player_name} not found')
+            return
+        if action not in ['attack', 'defend']:
+            print('Invalid action!')
+            return
+        print(f'{player_name} performs action: {action}')
 
-    def optimize_data_processing(self):
-        unique_data = list(set(self.data))
-        self.data = sorted(unique_data, key=lambda x: x[1], reverse=True)
-
-    def performance_summary(self):
-        return {"total_players": len(self.cache), "top_scores": self.get_top_scores()}
+# Example of usage
+if __name__ == '__main__':
+    game = Game()
+    game.add_player('Alice')
+    game.add_player('')  # This will raise an error
+    game.start_game()
+    game.player_action('Alice', 'attack')
+    game.player_action('Bob', 'defend')  # Player not found
+    game.player_action('Alice', 'fly')  # Invalid action
