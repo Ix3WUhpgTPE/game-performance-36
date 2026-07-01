@@ -1,45 +1,32 @@
-class GameError(Exception):
-    pass
+import random
+import json
 
-class Player:
-    def __init__(self, name, health=100):
-        if not name:
-            raise GameError('Player name cannot be empty')
-        self.name = name
-        self.health = health
+def validate_input(user_input):
+    if not isinstance(user_input, dict):
+        raise ValueError('Input must be a dictionary.')
+    if 'action' not in user_input:
+        raise ValueError('Missing action key in input.')
+    if user_input['action'] not in ['start', 'stop', 'pause']:
+        raise ValueError('Invalid action value.')
+    return True
 
-class Game:
-    def __init__(self):
-        self.players = []
-
-    def add_player(self, player_name):
+def game_loop():
+    print('Game is starting...')
+    while True:
         try:
-            new_player = Player(player_name)
-            self.players.append(new_player)
-        except GameError as e:
-            print(f'Error adding player: {e}')
-
-    def start_game(self):
-        if not self.players:
-            raise GameError('Cannot start game with no players')
-        print('Game has started!')
-
-    def player_action(self, player_name, action):
-        player = next((p for p in self.players if p.name == player_name), None)
-        if not player:
-            print(f'Player {player_name} not found')
-            return
-        if action not in ['attack', 'defend']:
-            print('Invalid action!')
-            return
-        print(f'{player_name} performs action: {action}')
-
-# Example of usage
+            user_input = json.loads(input('Enter a command (JSON format): '))
+            validate_input(user_input)
+            if user_input['action'] == 'start':
+                print('Game started!')
+            elif user_input['action'] == 'stop':
+                print('Game stopped!')
+                break
+            elif user_input['action'] == 'pause':
+                print('Game paused!')
+        except json.JSONDecodeError:
+            print('Invalid JSON format. Please try again.')
+        except ValueError as ve:
+            print(ve)
+            
 if __name__ == '__main__':
-    game = Game()
-    game.add_player('Alice')
-    game.add_player('')  # This will raise an error
-    game.start_game()
-    game.player_action('Alice', 'attack')
-    game.player_action('Bob', 'defend')  # Player not found
-    game.player_action('Alice', 'fly')  # Invalid action
+    game_loop()
