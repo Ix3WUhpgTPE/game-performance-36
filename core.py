@@ -1,32 +1,40 @@
-import random
-import json
+import time
 
-def validate_input(user_input):
-    if not isinstance(user_input, dict):
-        raise ValueError('Input must be a dictionary.')
-    if 'action' not in user_input:
-        raise ValueError('Missing action key in input.')
-    if user_input['action'] not in ['start', 'stop', 'pause']:
-        raise ValueError('Invalid action value.')
-    return True
+class GameEngine:
+    def __init__(self):
+        self.entities = []
+        self.last_update_time = time.time()
 
-def game_loop():
-    print('Game is starting...')
-    while True:
-        try:
-            user_input = json.loads(input('Enter a command (JSON format): '))
-            validate_input(user_input)
-            if user_input['action'] == 'start':
-                print('Game started!')
-            elif user_input['action'] == 'stop':
-                print('Game stopped!')
-                break
-            elif user_input['action'] == 'pause':
-                print('Game paused!')
-        except json.JSONDecodeError:
-            print('Invalid JSON format. Please try again.')
-        except ValueError as ve:
-            print(ve)
-            
+    def add_entity(self, entity):
+        self.entities.append(entity)
+
+    def update(self):
+        current_time = time.time()
+        delta_time = current_time - self.last_update_time
+        self.last_update_time = current_time
+        self.optimize_entities(delta_time)
+
+    def optimize_entities(self, delta_time):
+        for entity in self.entities:
+            entity.update(delta_time)
+            if entity.should_remove():
+                self.entities.remove(entity)
+
+class Entity:
+    def __init__(self, name):
+        self.name = name
+        self.active = True
+
+    def update(self, delta_time):
+        # Update entity logic here
+        pass
+
+    def should_remove(self):
+        return not self.active
+
+# Example usage:
 if __name__ == '__main__':
-    game_loop()
+    engine = GameEngine()
+    engine.add_entity(Entity('Player1'))
+    while True:
+        engine.update()
