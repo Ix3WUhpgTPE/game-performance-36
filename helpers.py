@@ -1,35 +1,31 @@
-import random
-import time
+import json
+from typing import Any, Dict
 
+def validate_input(user_input: Any) -> bool:
+    if not isinstance(user_input, dict):
+        return False
+    required_keys = ['username', 'score', 'level']
+    for key in required_keys:
+        if key not in user_input:
+            return False
+        if not isinstance(user_input[key], (str, int)):
+            return False
+    if not isinstance(user_input['score'], int) or user_input['score'] < 0:
+        return False
+    return True
 
-def wait_for(seconds):
-    time.sleep(seconds)
+def process_game_data(user_input: Dict[str, Any]) -> str:
+    if validate_input(user_input):
+        game_data = json.dumps(user_input)
+        return f'Processed data: {game_data}'
+    return 'Invalid input'
 
+def main_loop():
+    while True:
+        user_input = {'username': 'player1', 'score': 150, 'level': 2}
+        result = process_game_data(user_input)
+        print(result)
+        break  # Loop for demonstration purposes
 
-def random_choice(choices):
-    return random.choice(choices)
-
-
-def calculate_avg(numbers):
-    if not numbers:
-        return 0
-    return sum(numbers) / len(numbers)
-
-
-def time_function(func):
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        print(f"Function '{func.__name__}' executed in {{end_time - start_time:.4f}} seconds")
-        return result
-    return wrapper
-
-
-def format_score(score):
-    return f"Score: {score:.2f}"
-
-
-def shuffle_list(lst):
-    random.shuffle(lst)
-    return lst
+if __name__ == '__main__':
+    main_loop()
