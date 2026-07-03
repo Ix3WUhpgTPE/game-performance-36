@@ -1,37 +1,42 @@
 import random
-import time
 
-class Game:
-    def __init__(self, name, players):
+class GameCharacter:
+    def __init__(self, name, health, attack):
         self.name = name
-        self.players = players
-        self.scores = {player: 0 for player in players}
+        self.health = health
+        self.attack = attack
+        self.is_alive = True
 
-    def start_game(self):
-        print(f'Starting game: {self.name}')
-        self.play_rounds(5)
+    def take_damage(self, damage):
+        if damage < 0:
+            raise ValueError('Damage cannot be negative')
+        self.health -= damage
+        if self.health <= 0:
+            self.is_alive = False
+            self.health = 0
+            print(f'{self.name} has been defeated!')
 
-    def play_rounds(self, rounds):
-        for round_number in range(1, rounds + 1):
-            self.play_round(round_number)
+    def attack_enemy(self, enemy):
+        if not isinstance(enemy, GameCharacter):
+            raise TypeError('Enemy must be a GameCharacter instance')
+        if not self.is_alive:
+            raise RuntimeError(f'{self.name} cannot attack as they are defeated')
+        print(f'{self.name} attacks {enemy.name} for {self.attack} damage!')
+        enemy.take_damage(self.attack)
 
-    def play_round(self, round_number):
-        print(f'Round {round_number}')
-        for player in self.players:
-            score = self.roll_dice()
-            self.scores[player] += score
-            print(f'{player} rolled a {score}')
-        self.display_scores()
+    def heal(self, amount):
+        if amount < 0:
+            raise ValueError('Healing amount cannot be negative')
+        self.health += amount
+        print(f'{self.name} heals for {amount} points! Current health: {self.health}')
 
-    def roll_dice(self):
-        return random.randint(1, 6)
+# Example usage
 
-    def display_scores(self):
-        print('Current Scores:')
-        for player, score in self.scores.items():
-            print(f'{player}: {score}')
-
-if __name__ == '__main__':
-    players = ['Alice', 'Bob', 'Charlie']
-    game = Game('Dice Game', players)
-    game.start_game()
+try:
+    hero = GameCharacter('Hero', 100, 20)
+    villain = GameCharacter('Villain', 80, 15)
+    hero.attack_enemy(villain)
+    villain.attack_enemy(hero)
+    hero.heal(10)
+except (ValueError, TypeError, RuntimeError) as e:
+    print(f'Error: {e}')
