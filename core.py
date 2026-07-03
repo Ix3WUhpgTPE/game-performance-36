@@ -1,40 +1,37 @@
+import random
 import time
 
-class GameEngine:
-    def __init__(self):
-        self.entities = []
-        self.last_update_time = time.time()
-
-    def add_entity(self, entity):
-        self.entities.append(entity)
-
-    def update(self):
-        current_time = time.time()
-        delta_time = current_time - self.last_update_time
-        self.last_update_time = current_time
-        self.optimize_entities(delta_time)
-
-    def optimize_entities(self, delta_time):
-        for entity in self.entities:
-            entity.update(delta_time)
-            if entity.should_remove():
-                self.entities.remove(entity)
-
-class Entity:
-    def __init__(self, name):
+class Game:
+    def __init__(self, name, players):
         self.name = name
-        self.active = True
+        self.players = players
+        self.scores = {player: 0 for player in players}
 
-    def update(self, delta_time):
-        # Update entity logic here
-        pass
+    def start_game(self):
+        print(f'Starting game: {self.name}')
+        self.play_rounds(5)
 
-    def should_remove(self):
-        return not self.active
+    def play_rounds(self, rounds):
+        for round_number in range(1, rounds + 1):
+            self.play_round(round_number)
 
-# Example usage:
+    def play_round(self, round_number):
+        print(f'Round {round_number}')
+        for player in self.players:
+            score = self.roll_dice()
+            self.scores[player] += score
+            print(f'{player} rolled a {score}')
+        self.display_scores()
+
+    def roll_dice(self):
+        return random.randint(1, 6)
+
+    def display_scores(self):
+        print('Current Scores:')
+        for player, score in self.scores.items():
+            print(f'{player}: {score}')
+
 if __name__ == '__main__':
-    engine = GameEngine()
-    engine.add_entity(Entity('Player1'))
-    while True:
-        engine.update()
+    players = ['Alice', 'Bob', 'Charlie']
+    game = Game('Dice Game', players)
+    game.start_game()
