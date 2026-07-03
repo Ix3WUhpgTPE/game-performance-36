@@ -1,38 +1,29 @@
-from pathlib import Path
+import json
+import os
 
-class Config:
-    """Configuration settings for the game."""
-    def __init__(self, game_name: str, version: str, base_path: Path) -> None:
-        """Initialize config with game details.
+class ConfigLoader:
+    def __init__(self, default_config_path):
+        self.default_config_path = default_config_path
+        self.config = self.load_defaults()  
 
-        Args:
-            game_name (str): Name of the game.
-            version (str): Version of the game.
-            base_path (Path): Base path for configuration files.
-        """
-        self.game_name = game_name
-        self.version = version
-        self.base_path = base_path
-        self.settings_path = base_path / 'settings.json'
-
-    def load_settings(self) -> dict:
-        """Load the game settings from a JSON file.
-
-        Returns:
-            dict: Game settings loaded from the file.
-        """
-        import json
-        if self.settings_path.exists():
-            with open(self.settings_path) as f:
+    def load_defaults(self):
+        if os.path.exists(self.default_config_path):
+            with open(self.default_config_path, 'r') as f:
                 return json.load(f)
         return {}
 
-    def save_settings(self, settings: dict) -> None:
-        """Save the game settings to a JSON file.
+    def update_with_env(self):
+        for key, value in os.environ.items():
+            if key in self.config:
+                self.config[key] = value
 
-        Args:
-            settings (dict): Game settings to save.
-        """
-        import json
-        with open(self.settings_path, 'w') as f:
-            json.dump(settings, f, indent=4)
+    def get(self, key, default=None):
+        return self.config.get(key, default)
+
+    def save(self, file_path):
+        with open(file_path, 'w') as f:
+            json.dump(self.config, f, indent=4)
+
+# Usage example
+# config_loader = ConfigLoader('default_config.json')
+# config_loader.update_with_env()
