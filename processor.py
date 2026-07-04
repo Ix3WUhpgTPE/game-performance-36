@@ -1,33 +1,38 @@
-import numpy as np
-import time
+import json
 
 class GameProcessor:
-    def __init__(self, frame_rate=60):
-        self.frame_rate = frame_rate
-        self.last_frame_time = time.time()
-        self.delta_time = 0
+    def __init__(self, game_data):
+        self.game_data = game_data
 
-    def calculate_delta_time(self):
-        current_time = time.time()
-        self.delta_time = current_time - self.last_frame_time
-        self.last_frame_time = current_time
-        return self.delta_time
+    def process_data(self):
+        try:
+            self.validate_data(self.game_data)
+            processed_data = self._transform_data(self.game_data)
+            return json.dumps(processed_data)
+        except ValueError as ve:
+            return json.dumps({'error': 'Validation Error', 'message': str(ve)})
+        except TypeError as te:
+            return json.dumps({'error': 'Type Error', 'message': str(te)})
+        except Exception as e:
+            return json.dumps({'error': 'Unexpected Error', 'message': str(e)})
 
-    def limit_frame_rate(self):
-        target_time = 1 / self.frame_rate
-        time_to_sleep = target_time - self.delta_time
-        if time_to_sleep > 0:
-            time.sleep(time_to_sleep)
+    def validate_data(self, data):
+        if not isinstance(data, dict):
+            raise ValueError('Game data must be a dictionary.')
+        required_keys = ['name', 'score', 'level']
+        for key in required_keys:
+            if key not in data:
+                raise ValueError(f'Missing required key: {key}')
 
-    def process_frame(self):
-        self.calculate_delta_time()
-        # Frame processing logic here
-        self.limit_frame_rate()
+    def _transform_data(self, data):
+        return {
+            'game_name': data['name'],
+            'game_score': data['score'] * 100,
+            'game_level': f'Level {data['level']}'
+        }
 
-    def run(self, iterations=100):
-        for _ in range(iterations):
-            self.process_frame()  # Simulate frame processing
-
+# Sample usage
 if __name__ == '__main__':
-    game_processor = GameProcessor(frame_rate=30)
-    game_processor.run()  # Start the game loop
+    game_info = {'name': 'SuperGame', 'score': 0.85, 'level': 2}
+    processor = GameProcessor(game_info)
+    print(processor.process_data())
