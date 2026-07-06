@@ -1,34 +1,28 @@
 import json
 import os
 
-def load_game_data(file_path):
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Data file not found: {file_path}")
-    with open(file_path, 'r') as file:
-        try:
-            data = json.load(file)
-        except json.JSONDecodeError:
-            raise ValueError(f"Error decoding JSON from {file_path}")
-    return data
+class ConfigLoader:
+    def __init__(self, default_config_path='default_config.json'):
+        self.default_config = self.load_config(default_config_path)
 
-def save_game_data(file_path, data):
-    try:
-        with open(file_path, 'w') as file:
-            json.dump(data, file, indent=4)
-    except IOError:
-        raise IOError(f"Unable to write to {file_path}")
+    def load_config(self, path):
+        if not os.path.exists(path):
+            return {}
+        with open(path, 'r') as config_file:
+            return json.load(config_file)
 
-def get_data_statistics(data):
-    stats = {
-        'total_players': len(data['players']),
-        'highest_score': max(player['score'] for player in data['players']),
-        'average_score': sum(player['score'] for player in data['players']) / len(data['players'])
-    }
-    return stats
+    def get(self, key, default=None):
+        return self.default_config.get(key, default)
 
-# Example usage
-if __name__ == '__main__':
-    example_data = {'players': [{'name': 'Player1', 'score': 100}, {'name': 'Player2', 'score': 200}]}
-    save_game_data('game_data.json', example_data)
-    loaded_data = load_game_data('game_data.json')
-    print(get_data_statistics(loaded_data))
+    def merge_configs(self, custom_config_path):
+        custom_config = self.load_config(custom_config_path)
+        merged_config = {**self.default_config, **custom_config}
+        return merged_config
+
+    def get_merged_config(self, custom_config_path):
+        return self.merge_configs(custom_config_path)
+
+# Example usage:
+# loader = ConfigLoader()
+# config = loader.get_merged_config('custom_config.json')
+# print(config)
