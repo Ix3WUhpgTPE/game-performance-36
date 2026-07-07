@@ -1,26 +1,36 @@
 import time
 import random
+import requests
 
-def optimize_game_logic(game_state):
-    start_time = time.time()
-    if not game_state['is_running']:
-        return
-    for entity in game_state['entities']:
-        if entity['type'] == 'player':
-            update_player(entity)
-        elif entity['type'] == 'enemy':
-            update_enemy(entity)
-    elapsed_time = time.time() - start_time
-    print(f'Optimization took {elapsed_time:.4f} seconds')
+class NetworkError(Exception):
+    pass
 
+def retry(max_retries=5, backoff=1.0):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while retries < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except (requests.RequestException, NetworkError) as e:
+                    retries += 1
+                    sleep_time = backoff * (2 ** (retries - 1)) + random.uniform(0, 1)
+                    print(f'Attempt {retries} failed: {e}. Retrying in {sleep_time:.2f} seconds...')
+                    time.sleep(sleep_time)
+            raise NetworkError(f'Failed after {max_retries} attempts')
+        return wrapper
+    return decorator
 
-def update_player(player):
-    player['position'][0] += random.choice([-1, 1])
-    player['position'][1] += random.choice([-1, 1])
-    player['health'] = max(0, player['health'] - 1)
+@retry(max_retries=3, backoff=2)
+def fetch_data(url):
+    response = requests.get(url)
+    response.raise_for_status()
+    return response.json()
 
-
-def update_enemy(enemy):
-    enemy['position'][0] = min(max(enemy['position'][0] + random.choice([-1, 0, 1]), 0), 100)
-    enemy['position'][1] = min(max(enemy['position'][1] + random.choice([-1, 0, 1]), 0), 100)
-    enemy['health'] = max(0, enemy['health'] - 2)
+# Example usage
+if __name__ == '__main__':
+    try:
+        data = fetch_data('https://api.example.com/data')
+        print(data)
+    except NetworkError as e:
+        print(e)
