@@ -1,14 +1,18 @@
 import logging
 
-class CustomLogger:
-    def __init__(self, name):
+class GameLogger:
+    def __init__(self, name='GameLogger'):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.DEBUG)
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.INFO)
+        console_handler = logging.StreamHandler()
+        file_handler = logging.FileHandler('game.log')
+
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ch.setFormatter(formatter)
-        self.logger.addHandler(ch)
+        console_handler.setFormatter(formatter)
+        file_handler.setFormatter(formatter)
+
+        self.logger.addHandler(console_handler)
+        self.logger.addHandler(file_handler)
 
     def debug(self, message):
         self.logger.debug(message)
@@ -25,7 +29,11 @@ class CustomLogger:
     def critical(self, message):
         self.logger.critical(message)
 
-logger = CustomLogger('GamePerformanceLogger')
-
+# Usage Example:
 if __name__ == '__main__':
-    logger.info('Logger initialized successfully.')
+    log = GameLogger()
+    log.info('Game started')
+    log.debug('Player moved to position (10, 20)')
+    log.warning('Low health warning')
+    log.error('Player died')
+    log.critical('Game crashed unexpectedly')
