@@ -1,24 +1,25 @@
-import re
+def validate_player_stats(player_stats):
+    if not isinstance(player_stats, dict):
+        raise ValueError("Player stats must be a dictionary")
+    required_keys = ['level', 'experience', 'health']
+    for key in required_keys:
+        if key not in player_stats:
+            raise ValueError(f"Missing required key: {key}")
+        if not isinstance(player_stats[key], (int, float)):
+            raise TypeError(f"{key} must be an int or float")
+        if key == 'level' and player_stats[key] < 1:
+            raise ValueError("Level must be greater than 0")
+        if key == 'experience' and player_stats[key] < 0:
+            raise ValueError("Experience cannot be negative")
+        if key == 'health' and player_stats[key] < 0:
+            raise ValueError("Health cannot be negative")
+    return True
 
-class GameDataValidator:
-    @staticmethod
-    def is_valid_game_id(game_id):
-        return isinstance(game_id, str) and re.match(r'^[A-Z0-9]{10}$', game_id)
-
-    @staticmethod
-    def is_valid_score(score):
-        return isinstance(score, (int, float)) and 0 <= score <= 100
-
-    @staticmethod
-    def is_valid_username(username):
-        return isinstance(username, str) and 3 <= len(username) <= 20 and re.match(r'^[A-Za-z0-9_]+$', username)
-
-    @staticmethod
-    def validate_game_data(game_id, score, username):
-        if not GameDataValidator.is_valid_game_id(game_id):
-            raise ValueError('Invalid game ID format.')
-        if not GameDataValidator.is_valid_score(score):
-            raise ValueError('Score must be between 0 and 100.')
-        if not GameDataValidator.is_valid_username(username):
-            raise ValueError('Username must be 3-20 characters long and contain only letters, numbers, and underscores.')
-        return True
+# Example Usage:
+if __name__ == '__main__':
+    stats = {'level': 5, 'experience': 1500, 'health': 100}
+    try:
+        validate_player_stats(stats)
+        print("Player stats are valid.")
+    except Exception as e:
+        print(e)
