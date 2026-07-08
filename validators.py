@@ -1,26 +1,24 @@
-import json
+import re
 
-class Validator:
-    def __init__(self, schema):
-        self.schema = schema
+class GameDataValidator:
+    @staticmethod
+    def is_valid_game_id(game_id):
+        return isinstance(game_id, str) and re.match(r'^[A-Z0-9]{10}$', game_id)
 
-    def validate(self, data):
-        for key, value in self.schema.items():
-            if key not in data:
-                raise ValueError(f"Missing key: {key}")
-            if not isinstance(data[key], value):
-                raise TypeError(f"Invalid type for {key}: expected {value.__name__}, got {type(data[key]).__name__}")
+    @staticmethod
+    def is_valid_score(score):
+        return isinstance(score, (int, float)) and 0 <= score <= 100
+
+    @staticmethod
+    def is_valid_username(username):
+        return isinstance(username, str) and 3 <= len(username) <= 20 and re.match(r'^[A-Za-z0-9_]+$', username)
+
+    @staticmethod
+    def validate_game_data(game_id, score, username):
+        if not GameDataValidator.is_valid_game_id(game_id):
+            raise ValueError('Invalid game ID format.')
+        if not GameDataValidator.is_valid_score(score):
+            raise ValueError('Score must be between 0 and 100.')
+        if not GameDataValidator.is_valid_username(username):
+            raise ValueError('Username must be 3-20 characters long and contain only letters, numbers, and underscores.')
         return True
-
-    def validate_json(self, json_string):
-        data = json.loads(json_string)
-        return self.validate(data)
-
-if __name__ == '__main__':
-    # Sample schema definition
-    schema = {'player_name': str, 'score': int, 'level': int}
-    v = Validator(schema)
-    sample_data = {'player_name': 'Gamer123', 'score': 1500, 'level': 5}
-    print(v.validate(sample_data))  # Should print True  
-    sample_json = '{"player_name": "Gamer123", "score": 1500, "level": 5}'
-    print(v.validate_json(sample_json))  # Should print True
