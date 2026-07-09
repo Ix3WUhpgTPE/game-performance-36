@@ -1,39 +1,31 @@
-from typing import List, Dict, Union
+import time
 
+def timeit(func):
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        print(f'Execution time for {func.__name__}: {end - start} seconds')
+        return result
+    return wrapper
 
-def calculate_fps(frames: int, time_seconds: float) -> float:
-    """
-    Calculate the frames per second (FPS) based on frames captured
-    and the time elapsed.
+@timeit
+def optimize_performance(data):
+    result = []
+    for item in data:
+        if item not in result:
+            result.append(item)
+    return result
 
-    :param frames: The number of frames captured.
-    :param time_seconds: The time period over which the frames were captured (in seconds).
-    :return: The calculated FPS as a float.
-    """
-    if time_seconds <= 0:
-        raise ValueError('Time must be greater than zero')
-    return frames / time_seconds
+@timeit
+def accelerate_processing(numbers):
+    doubled = [x * 2 for x in numbers]
+    squared = [x ** 2 for x in doubled]
+    return squared
 
-
-def average_score(scores: List[Union[int, float]]) -> float:
-    """
-    Calculate the average score from a list of scores.
-
-    :param scores: A list of integer or float scores.
-    :return: The average score as a float.
-    """
-    if not scores:
-        raise ValueError('Score list cannot be empty')
-    return sum(scores) / len(scores)
-
-
-def find_highest_score(score_dict: Dict[str, Union[int, float]]) -> str:
-    """
-    Find the player with the highest score.
-
-    :param score_dict: A dictionary with player names as keys and their scores as values.
-    :return: The name of the player with the highest score.
-    """
-    if not score_dict:
-        raise ValueError('Score dictionary cannot be empty')
-    return max(score_dict, key=score_dict.get)
+if __name__ == '__main__':
+    sample_data = [1, 2, 2, 3, 4, 4, 5]
+    unique_data = optimize_performance(sample_data)
+    print('Unique Data:', unique_data)
+    processed_numbers = accelerate_processing([1, 2, 3, 4, 5])
+    print('Processed Numbers:', processed_numbers)
