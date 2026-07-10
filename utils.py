@@ -1,28 +1,55 @@
-import json
-import os
+from typing import List, Dict, Any
 
-class ConfigLoader:
-    def __init__(self, default_config_path='default_config.json'):
-        self.default_config = self.load_config(default_config_path)
 
-    def load_config(self, path):
-        if not os.path.exists(path):
-            return {}
-        with open(path, 'r') as config_file:
-            return json.load(config_file)
+def calculate_frame_time(frames: List[float]) -> float:
+    """
+    Calculate the average frame time from provided frame times.
 
-    def get(self, key, default=None):
-        return self.default_config.get(key, default)
+    Args:
+        frames (List[float]): A list of frame times in seconds.
 
-    def merge_configs(self, custom_config_path):
-        custom_config = self.load_config(custom_config_path)
-        merged_config = {**self.default_config, **custom_config}
-        return merged_config
+    Returns:
+        float: The average frame time.
+    """
+    return sum(frames) / len(frames) if frames else 0.0
 
-    def get_merged_config(self, custom_config_path):
-        return self.merge_configs(custom_config_path)
 
-# Example usage:
-# loader = ConfigLoader()
-# config = loader.get_merged_config('custom_config.json')
-# print(config)
+def format_game_stats(stats: Dict[str, Any]) -> str:
+    """
+    Convert game statistics to a formatted string.
+
+    Args:
+        stats (Dict[str, Any]): Dictionary containing game stats.
+
+    Returns:
+        str: Formatted string of the game stats.
+    """
+    return '\n'.join(f'{key}: {value}' for key, value in stats.items())
+
+
+def load_configuration(file_path: str) -> Dict[str, Any]:
+    """
+    Load game configuration from a JSON file.
+
+    Args:
+        file_path (str): The path to the configuration JSON file.
+
+    Returns:
+        Dict[str, Any]: The loaded configuration.
+    """
+    import json
+    with open(file_path, 'r') as file:
+        return json.load(file)
+
+
+def is_high_performance(config: Dict[str, Any]) -> bool:
+    """
+    Determine if the game is set to high performance.
+
+    Args:
+        config (Dict[str, Any]): Game configuration.
+
+    Returns:
+        bool: True if high performance, False otherwise.
+    """
+    return config.get('performance_mode', 'normal') == 'high'
