@@ -1,19 +1,26 @@
 import logging
 from logging.handlers import RotatingFileHandler
 
-def setup_logger(log_file='game.log', max_bytes=5*1024*1024, backup_count=3):
-    logger = logging.getLogger('GameLogger')
-    logger.setLevel(logging.DEBUG)
-    handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    return logger
+class Logger:
+    def __init__(self, name, log_file='app.log', max_bytes=5*1024*1024, backup_count=3):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
+        handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
 
-if __name__ == '__main__':
-    logger = setup_logger()
-    logger.info('Logger is set up and ready!')
-    logger.debug('This is a debug message.')
-    logger.warning('This is a warning message.')
-    logger.error('This is an error message.')
-    logger.critical('This is a critical message.')
+    def debug(self, msg):
+        self.logger.debug(msg)
+
+    def info(self, msg):
+        self.logger.info(msg)
+
+    def warning(self, msg):
+        self.logger.warning(msg)
+
+    def error(self, msg):
+        self.logger.error(msg)
+
+    def critical(self, msg):
+        self.logger.critical(msg)
