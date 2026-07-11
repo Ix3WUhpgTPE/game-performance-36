@@ -1,55 +1,34 @@
-from typing import List, Dict, Any
+import json
+import os
 
+class GameDataHandler:
+    def __init__(self, filepath):
+        self.filepath = filepath
+        self.data = self.load_data()
 
-def calculate_frame_time(frames: List[float]) -> float:
-    """
-    Calculate the average frame time from provided frame times.
+    def load_data(self):
+        if os.path.exists(self.filepath):
+            with open(self.filepath, 'r') as file:
+                return json.load(file)
+        return {}
 
-    Args:
-        frames (List[float]): A list of frame times in seconds.
+    def save_data(self):
+        with open(self.filepath, 'w') as file:
+            json.dump(self.data, file, indent=4)
 
-    Returns:
-        float: The average frame time.
-    """
-    return sum(frames) / len(frames) if frames else 0.0
+    def update_score(self, player, score):
+        if player in self.data:
+            self.data[player]['score'] += score
+        else:
+            self.data[player] = {'score': score}
+        self.save_data()
 
+    def get_top_players(self, n=5):
+        sorted_players = sorted(self.data.items(), key=lambda item: item[1]['score'], reverse=True)
+        return sorted_players[:n]
 
-def format_game_stats(stats: Dict[str, Any]) -> str:
-    """
-    Convert game statistics to a formatted string.
-
-    Args:
-        stats (Dict[str, Any]): Dictionary containing game stats.
-
-    Returns:
-        str: Formatted string of the game stats.
-    """
-    return '\n'.join(f'{key}: {value}' for key, value in stats.items())
-
-
-def load_configuration(file_path: str) -> Dict[str, Any]:
-    """
-    Load game configuration from a JSON file.
-
-    Args:
-        file_path (str): The path to the configuration JSON file.
-
-    Returns:
-        Dict[str, Any]: The loaded configuration.
-    """
-    import json
-    with open(file_path, 'r') as file:
-        return json.load(file)
-
-
-def is_high_performance(config: Dict[str, Any]) -> bool:
-    """
-    Determine if the game is set to high performance.
-
-    Args:
-        config (Dict[str, Any]): Game configuration.
-
-    Returns:
-        bool: True if high performance, False otherwise.
-    """
-    return config.get('performance_mode', 'normal') == 'high'
+if __name__ == '__main__':
+    handler = GameDataHandler('game_scores.json')
+    handler.update_score('Alice', 10)
+    handler.update_score('Bob', 20)
+    print(handler.get_top_players(2))
