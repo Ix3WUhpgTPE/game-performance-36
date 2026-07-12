@@ -1,31 +1,32 @@
-import time
+import json
+from collections import defaultdict
 
-def timeit(func):
-    def wrapper(*args, **kwargs):
-        start = time.time()
-        result = func(*args, **kwargs)
-        end = time.time()
-        print(f'Execution time for {func.__name__}: {end - start} seconds')
-        return result
-    return wrapper
+def load_game_data(file_path):
+    with open(file_path, 'r') as file:
+        return json.load(file)
 
-@timeit
-def optimize_performance(data):
-    result = []
-    for item in data:
-        if item not in result:
-            result.append(item)
-    return result
 
-@timeit
-def accelerate_processing(numbers):
-    doubled = [x * 2 for x in numbers]
-    squared = [x ** 2 for x in doubled]
-    return squared
+def aggregate_score_data(game_data):
+    score_summary = defaultdict(lambda: {'total_score': 0, 'games_played': 0})
+    for entry in game_data:
+        player = entry['player']
+        score_summary[player]['total_score'] += entry['score']
+        score_summary[player]['games_played'] += 1
+    return score_summary
 
-if __name__ == '__main__':
-    sample_data = [1, 2, 2, 3, 4, 4, 5]
-    unique_data = optimize_performance(sample_data)
-    print('Unique Data:', unique_data)
-    processed_numbers = accelerate_processing([1, 2, 3, 4, 5])
-    print('Processed Numbers:', processed_numbers)
+
+def get_high_scores(score_data, top_n=5):
+    sorted_scores = sorted(score_data.items(), key=lambda x: x[1]['total_score'], reverse=True)
+    return sorted_scores[:top_n]
+
+
+def save_high_scores(high_scores, output_path):
+    with open(output_path, 'w') as file:
+        json.dump(high_scores, file, indent=4)
+
+
+def process_game_scores(input_file, output_file, top_n=5):
+    game_data = load_game_data(input_file)
+    aggregated_scores = aggregate_score_data(game_data)
+    high_scores = get_high_scores(aggregated_scores, top_n)
+    save_high_scores(high_scores, output_file)
