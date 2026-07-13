@@ -1,22 +1,29 @@
-class GameError(Exception):
-    def __init__(self, message, code):
-        super().__init__(message)
-        self.code = code
+class InvalidInputError(Exception):
+    """Exception raised for invalid inputs."""
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
 
-class ValidationError(GameError):
-    pass
 
-class ConnectionError(GameError):
-    pass
+def validate_input(user_input):
+    if not isinstance(user_input, str):
+        raise InvalidInputError('Input must be a string')
+    if len(user_input) == 0:
+        raise InvalidInputError('Input cannot be empty')
+    if not user_input.isalnum():
+        raise InvalidInputError('Input must be alphanumeric')
 
-class ResourceNotFoundError(GameError):
-    pass
 
-def handle_game_exception(e):
-    if isinstance(e, ValidationError):
-        return {'status': 'error', 'message': str(e), 'code': e.code}
-    elif isinstance(e, ConnectionError):
-        return {'status': 'error', 'message': 'Failed to connect, please try again.', 'code': e.code}
-    elif isinstance(e, ResourceNotFoundError):
-        return {'status': 'error', 'message': 'Requested resource not found.', 'code': e.code}
-    return {'status': 'error', 'message': 'An unexpected error occurred.', 'code': 500}
+if __name__ == '__main__':
+    while True:
+        try:
+            user_input = input('Enter your command: ')
+            validate_input(user_input)
+            print(f'Valid input received: {user_input}')
+        except InvalidInputError as e:
+            print(f'Error: {e}')
+        except KeyboardInterrupt:
+            print('\nExiting...')
+            break
+        except Exception as e:
+            print(f'Unexpected error: {e}')
