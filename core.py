@@ -1,42 +1,39 @@
-import random
+from typing import List, Dict, Any
 
-class GameCharacter:
-    def __init__(self, name, health, attack):
+class Game:
+    def __init__(self, name: str, genre: str, max_players: int) -> None:
+        """Initialize the game with name, genre, and max players."""
         self.name = name
-        self.health = health
-        self.attack = attack
-        self.is_alive = True
+        self.genre = genre
+        self.max_players = max_players
+        self.current_players: List[str] = []
 
-    def take_damage(self, damage):
-        if damage < 0:
-            raise ValueError('Damage cannot be negative')
-        self.health -= damage
-        if self.health <= 0:
-            self.is_alive = False
-            self.health = 0
-            print(f'{self.name} has been defeated!')
+    def add_player(self, player_name: str) -> bool:
+        """Add a player to the game if there's space remaining."""
+        if len(self.current_players) < self.max_players:
+            self.current_players.append(player_name)
+            return True
+        return False
 
-    def attack_enemy(self, enemy):
-        if not isinstance(enemy, GameCharacter):
-            raise TypeError('Enemy must be a GameCharacter instance')
-        if not self.is_alive:
-            raise RuntimeError(f'{self.name} cannot attack as they are defeated')
-        print(f'{self.name} attacks {enemy.name} for {self.attack} damage!')
-        enemy.take_damage(self.attack)
+    def start_game(self) -> Dict[str, Any]:
+        """Start the game if enough players have joined."""
+        if len(self.current_players) < 2:
+            return {'status': 'failed', 'message': 'Not enough players to start the game.'}
+        return {'status': 'started', 'players': self.current_players}
 
-    def heal(self, amount):
-        if amount < 0:
-            raise ValueError('Healing amount cannot be negative')
-        self.health += amount
-        print(f'{self.name} heals for {amount} points! Current health: {self.health}')
+    def get_details(self) -> Dict[str, Any]:
+        """Return a dictionary with game details."""
+        return {
+            'name': self.name,
+            'genre': self.genre,
+            'max_players': self.max_players,
+            'current_players': self.current_players,
+        }
 
-# Example usage
-
-try:
-    hero = GameCharacter('Hero', 100, 20)
-    villain = GameCharacter('Villain', 80, 15)
-    hero.attack_enemy(villain)
-    villain.attack_enemy(hero)
-    hero.heal(10)
-except (ValueError, TypeError, RuntimeError) as e:
-    print(f'Error: {e}')
+# Example usage:
+game_instance = Game('Epic Quest', 'Adventure', 4)
+game_instance.add_player('Player1')
+game_instance.add_player('Player2')
+result = game_instance.start_game()  
+print(result)
+print(game_instance.get_details())
