@@ -1,33 +1,30 @@
-def validate_input(user_input):
-    if not isinstance(user_input, dict):
-        raise ValueError('Input must be a dictionary')
-    if 'action' not in user_input:
-        raise ValueError('Missing action key')
-    if user_input['action'] not in ['move', 'attack', 'defend']:
-        raise ValueError('Invalid action specified')
-    return True
+import re
 
-def main_loop():
-    while True:
-        user_input = get_user_input()
-        try:
-            validate_input(user_input)
-            process_action(user_input['action'])
-        except ValueError as e:
-            print(f'Input error: {e}')
-            continue
-        except Exception as e:
-            print(f'Unexpected error: {e}')
+class GameDataValidator:
+    @staticmethod
+    def validate_score(score):
+        if not isinstance(score, int) or score < 0:
+            raise ValueError('Score must be a non-negative integer.')
+        return True
 
-        # Other game logic goes here
+    @staticmethod
+    def validate_username(username):
+        if not isinstance(username, str) or not re.match('^[A-Za-z0-9_]{3,20}$', username):
+            raise ValueError('Username must be 3-20 characters long and can contain letters, numbers, and underscores.')
+        return True
 
-def get_user_input():
-    # Simulating user input for the demo
-    return {'action': 'move'}  # Replace with actual input source
-
-
-def process_action(action):
-    print(f'Processing action: {action}')
+    @staticmethod
+    def validate_game_id(game_id):
+        if not isinstance(game_id, str) or not game_id.isdigit() or len(game_id) != 10:
+            raise ValueError('Game ID must be a string of 10 digits.')
+        return True
 
 if __name__ == '__main__':
-    main_loop()
+    # Example usage
+    try:
+        GameDataValidator.validate_score(100)
+        GameDataValidator.validate_username('Player_1')
+        GameDataValidator.validate_game_id('1234567890')
+        print('All validations passed.')
+    except ValueError as e:
+        print(e)
