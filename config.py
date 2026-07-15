@@ -1,20 +1,26 @@
-import json
 import os
 
-def load_config(file_path, defaults):
-    if not os.path.exists(file_path):
-        return defaults
-    with open(file_path, 'r') as config_file:
-        config = json.load(config_file)
-        return {**defaults, **config}
+class Config:
+    def __init__(self):
+        self.ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+        self.LOAD_PATH = os.path.join(self.ROOT_DIR, 'assets', 'load')
+        self.SAVE_PATH = os.path.join(self.ROOT_DIR, 'assets', 'save')
+        self.LOG_LEVEL = 'DEBUG'
+        self.MAX_PLAYERS = 10
+        self.DEFAULT_SETTINGS = {
+            'fullscreen': False,
+            'resolution': (1920, 1080),
+            'volume': 75
+        }
+
+    def get_log_file(self):
+        return os.path.join(self.ROOT_DIR, 'logs', 'game.log')
+
+    def get_settings(self):
+        return self.DEFAULT_SETTINGS
+
+config = Config()
 
 if __name__ == '__main__':
-    default_settings = {
-        'resolution': '1920x1080',
-        'fullscreen': True,
-        'volume': 75,
-        'difficulty': 'normal'
-    }
-    config_path = 'config.json'
-    config = load_config(config_path, default_settings)
-    print(config)
+    print(config.get_log_file())
+    print(config.get_settings())
