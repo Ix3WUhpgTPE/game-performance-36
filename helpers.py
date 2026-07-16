@@ -1,26 +1,56 @@
-import random
-
-def roll_dice(sides=6, rolls=1):
-    return [random.randint(1, sides) for _ in range(rolls)]
+from typing import List, Dict, Any
 
 
-def calculate_health(max_health, damage):
-    return max(0, max_health - damage)
+def calculate_score(points: List[int], multipliers: Dict[str, float]) -> float:
+    """
+    Calculate the total score based on points and multipliers.
+
+    Args:
+        points (List[int]): A list of points scored in different levels.
+        multipliers (Dict[str, float]): A dictionary of level names and their respective multipliers.
+
+    Returns:
+        float: The calculated total score.
+    """
+    total_score = 0.0
+    for i, point in enumerate(points):
+        level_key = f'level_{i + 1}'
+        multiplier = multipliers.get(level_key, 1.0)
+        total_score += point * multiplier
+    return total_score
 
 
-def is_valid_move(board, current_position, new_position):
-    x, y = current_position
-    new_x, new_y = new_position
-    return (0 <= new_x < len(board) and
-            0 <= new_y < len(board[0]) and
-            board[new_x][new_y] == 0)
+def get_average_score(scores: List[float]) -> float:
+    """
+    Calculate the average of a list of scores.
+
+    Args:
+        scores (List[float]): A list of scores to average.
+
+    Returns:
+        float: The average score, or 0 if the list is empty.
+    """
+    return sum(scores) / len(scores) if scores else 0.0
 
 
-def print_board(board):
-    for row in board:
-        print(' '.join(str(cell) for cell in row))
+def format_score(score: float) -> str:
+    """
+    Format the score to two decimal places.
+
+    Args:
+        score (float): The score to format.
+
+    Returns:
+        str: The formatted score as a string.
+    """
+    return f'{score:.2f}'
 
 
-def log_event(event_message):
-    with open('game_log.txt', 'a') as log_file:
-        log_file.write(event_message + '\n')
+# Example usage of the helpers
+if __name__ == '__main__':
+    scores = [100, 200, 150]
+    multipliers = {'level_1': 1.5, 'level_2': 2.0}  
+    total = calculate_score(scores, multipliers)
+    print(f'Total score: {format_score(total)}')
+    average = get_average_score([total])
+    print(f'Average score: {format_score(average)}')
