@@ -1,35 +1,29 @@
-import random
-import math
+def safe_divide(numerator, denominator):
+    try:
+        if denominator == 0:
+            raise ValueError('Denominator cannot be zero.')
+        return numerator / denominator
+    except TypeError:
+        raise TypeError('Numerator and denominator must be numbers.')
 
 
-def generate_random_position(width, height):
-    return (random.randint(0, width), random.randint(0, height))
+def get_player_score(player):
+    try:
+        if player is None:
+            raise ValueError('Player cannot be None.')
+        return player['score']
+    except KeyError:
+        raise KeyError('Score key is missing.')
+    except TypeError:
+        raise TypeError('Player must be a dictionary.')
 
 
-def calculate_distance(point1, point2):
-    return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
-
-
-def clamp(value, minimum, maximum):
-    return max(minimum, min(value, maximum))
-
-
-def lerp(start, end, t):
-    return start + (end - start) * t
-
-
-def is_point_in_rectangle(point, rect):
-    x, y = point
-    rect_x, rect_y, rect_width, rect_height = rect
-    return rect_x <= x <= rect_x + rect_width and rect_y <= y <= rect_y + rect_height
-
-
-def normalized_vector(vector):
-    length = math.sqrt(vector[0] ** 2 + vector[1] ** 2)
-    if length == 0:
-        return (0, 0)
-    return (vector[0] / length, vector[1] / length)
-
-
-def random_color():
-    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+def load_game_data(file_path):
+    import json
+    try:
+        with open(file_path, 'r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        raise FileNotFoundError(f'File not found: {file_path}')
+    except json.JSONDecodeError:
+        raise ValueError('File is not a valid JSON.')
