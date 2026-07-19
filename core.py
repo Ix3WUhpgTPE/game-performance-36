@@ -1,39 +1,42 @@
-from typing import List, Dict, Any
+import random
+import json
+
+class GameError(Exception):
+    pass
 
 class Game:
-    def __init__(self, name: str, genre: str, max_players: int) -> None:
-        """Initialize the game with name, genre, and max players."""
-        self.name = name
-        self.genre = genre
-        self.max_players = max_players
-        self.current_players: List[str] = []
+    def __init__(self):
+        self.score = 0
+        self.level = 1
+        self.max_level = 10
+        self.is_running = True
 
-    def add_player(self, player_name: str) -> bool:
-        """Add a player to the game if there's space remaining."""
-        if len(self.current_players) < self.max_players:
-            self.current_players.append(player_name)
-            return True
-        return False
+    def start_game(self):
+        try:
+            print('Game started!')
+            while self.is_running:
+                self.play_level(self.level)
+        except GameError as e:
+            print(f'Error occurred: {e}')
+            self.is_running = False
 
-    def start_game(self) -> Dict[str, Any]:
-        """Start the game if enough players have joined."""
-        if len(self.current_players) < 2:
-            return {'status': 'failed', 'message': 'Not enough players to start the game.'}
-        return {'status': 'started', 'players': self.current_players}
+    def play_level(self, level):
+        if level > self.max_level:
+            raise GameError('Level exceeds max level!')
+        print(f'Playing level {level}')
+        outcome = random.choice(['win', 'lose'])
+        if outcome == 'win':
+            self.score += 10
+            print(f'Level {level} completed. Score: {self.score}')
+            self.level += 1
+        else:
+            print(f'Level {level} failed. Better luck next time!')
 
-    def get_details(self) -> Dict[str, Any]:
-        """Return a dictionary with game details."""
-        return {
-            'name': self.name,
-            'genre': self.genre,
-            'max_players': self.max_players,
-            'current_players': self.current_players,
-        }
+    def get_score(self):
+        return self.score
 
-# Example usage:
-game_instance = Game('Epic Quest', 'Adventure', 4)
-game_instance.add_player('Player1')
-game_instance.add_player('Player2')
-result = game_instance.start_game()  
-print(result)
-print(game_instance.get_details())
+if __name__ == '__main__':
+    game = Game()
+    game.start_game()
+    score = game.get_score()
+    print(f'Final score: {score}')
