@@ -1,17 +1,33 @@
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+import math
+
+# Game constants
+def get_gravitational_acceleration(scale=1.0):
+    """Returns gravitational acceleration based on scale."""
+    return 9.81 * scale
+
+# Screen settings
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
+
+# Color definitions
+class Colors:
+    BLACK = (0, 0, 0)
+    WHITE = (255, 255, 255)
+    RED = (255, 0, 0)
+    GREEN = (0, 255, 0)
+    BLUE = (0, 0, 255)
+
+# Utility functions
+def is_point_within_bounds(point, bounds):
+    """Check if a point is within provided bounds."""
+    x, y = point
+    return bounds[0] <= x <= bounds[2] and bounds[1] <= y <= bounds[3]
+
+# Game physics
+def calculate_distance(point1, point2):
+    """Calculate the distance between two points."""
+    return math.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)  
+
+# Time management
 FPS = 60
-COLOR_BLACK = (0, 0, 0)
-COLOR_WHITE = (255, 255, 255)
-COLOR_RED = (255, 0, 0)
-COLOR_GREEN = (0, 255, 0)
-COLOR_BLUE = (0, 0, 255)
-PLAYER_SPEED = 5
-ENEMY_SPEED = 3
-GRAVITY = 9.8
-JUMP_HEIGHT = 15
-LEVELS = {'easy': 1, 'medium': 2, 'hard': 3}
-TEXT_FONT = 'Arial'
-TEXT_SIZE = 20
-MAX_PLAYERS = 4
-ITEMS = ['sword', 'shield', 'potion', 'bow']
+FRAME_TIME = 1.0 / FPS
