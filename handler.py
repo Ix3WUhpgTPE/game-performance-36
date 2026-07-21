@@ -1,31 +1,40 @@
 import random
-import json
+
+class GameError(Exception):
+    pass
 
 class GameHandler:
     def __init__(self):
-        self.valid_inputs = {"start", "stop", "pause"}
+        self.current_state = 'idle'
+        self.score = 0
+        self.max_score = 100
 
-    def validate_input(self, user_input):
-        if user_input not in self.valid_inputs:
-            raise ValueError(f"Invalid input: {user_input}. Valid options are {self.valid_inputs}.")
+    def start_game(self):
+        if self.current_state != 'idle':
+            raise GameError('Game is already in progress.')
+        self.current_state = 'playing'
+        print('Game started!')
 
-    def process_input(self, user_input):
-        self.validate_input(user_input)
-        response = {"status": "success", "action": user_input}
-        print(json.dumps(response))
+    def score_points(self, points):
+        if self.current_state != 'playing':
+            raise GameError('Game must be in progress to score.')
+        if points < 0:
+            raise GameError('Score points cannot be negative.')
+        self.score += points
+        if self.score > self.max_score:
+            self.score = self.max_score
+            print('Max score reached!')
+        print(f'Score: {self.score}')
 
-    def main_loop(self):
-        print("Game is starting...")
-        while True:
-            user_input = input("Enter command (start/stop/pause): ")
-            if user_input == "exit":
-                print("Exiting game...")
-                break
-            try:
-                self.process_input(user_input)
-            except ValueError as e:
-                print(e)
+    def end_game(self):
+        if self.current_state == 'idle':
+            raise GameError('No game is in progress.')
+        self.current_state = 'idle'
+        print(f'Game ended. Final score: {self.score}')
 
 if __name__ == '__main__':
-    game_handler = GameHandler()
-    game_handler.main_loop()
+    handler = GameHandler()
+    handler.start_game()
+    for _ in range(5):
+        handler.score_points(random.randint(10, 30))
+    handler.end_game()
