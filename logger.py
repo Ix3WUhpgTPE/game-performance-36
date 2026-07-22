@@ -1,34 +1,31 @@
 import logging
 
-# Configure the logger
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-
-class GameLogger:
-    def __init__(self, name):
+class Logger:
+    def __init__(self, name, level=logging.DEBUG):
         self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
+        handler = logging.FileHandler(f'{name}.log')
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
 
-    def info(self, message):
-        self.logger.info(message)
+    def debug(self, msg):
+        self.logger.debug(msg)
 
-    def debug(self, message):
-        self.logger.debug(message)
+    def info(self, msg):
+        self.logger.info(msg)
 
-    def warning(self, message):
-        self.logger.warning(message)
+    def warning(self, msg):
+        self.logger.warning(msg)
 
-    def error(self, message):
-        self.logger.error(message)
+    def error(self, msg):
+        self.logger.error(msg)
 
-    def critical(self, message):
-        self.logger.critical(message)
+    def critical(self, msg):
+        self.logger.critical(msg)
 
-    def validate_input(self, user_input):
-        if not isinstance(user_input, str):
-            self.error("Invalid input type");
-            raise ValueError("Input must be a string")
-        if not user_input.strip():
-            self.warning("Empty input provided");
-            raise ValueError("Input cannot be empty")
-
-logger = GameLogger(__name__)
-logger.info("Logger initialized")
+# Usage Example
+if __name__ == '__main__':
+    log = Logger('game_logger')
+    log.info('This is an info message.')
+    log.error('This is an error message.')
