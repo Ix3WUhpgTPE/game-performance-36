@@ -1,33 +1,33 @@
-import math
+from typing import Final
 
-# Game constants
-def get_gravitational_acceleration(scale=1.0):
-    """Returns gravitational acceleration based on scale."""
-    return 9.81 * scale
+# Constants used throughout the game
 
-# Screen settings
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
+BASE_HEALTH: Final[int] = 100
+BASE_MANA: Final[int] = 50
+BASE_ARMOR: Final[int] = 10
 
-# Color definitions
-class Colors:
-    BLACK = (0, 0, 0)
-    WHITE = (255, 255, 255)
-    RED = (255, 0, 0)
-    GREEN = (0, 255, 0)
-    BLUE = (0, 0, 255)
+# Game settings constants
 
-# Utility functions
-def is_point_within_bounds(point, bounds):
-    """Check if a point is within provided bounds."""
-    x, y = point
-    return bounds[0] <= x <= bounds[2] and bounds[1] <= y <= bounds[3]
+SCREEN_WIDTH: Final[int] = 1280
+SCREEN_HEIGHT: Final[int] = 720
+FPS: Final[int] = 60
 
-# Game physics
-def calculate_distance(point1, point2):
-    """Calculate the distance between two points."""
-    return math.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)  
+# Levels constants
+LEVELS: Final[list[str]] = [
+    'Beginner',
+    'Intermediate',
+    'Expert',
+    'Legendary'
+]
 
-# Time management
-FPS = 60
-FRAME_TIME = 1.0 / FPS
+# Scoring constants
+POINTS_PER_KILL: Final[int] = 100
+POINTS_PER_OBJECTIVE: Final[int] = 500
+
+# Player action constants
+MOVE_UP: Final[str] = 'W'
+MOVE_DOWN: Final[str] = 'S'
+MOVE_LEFT: Final[str] = 'A'
+MOVE_RIGHT: Final[str] = 'D'
+
+# This module provides constant values for configurations.
