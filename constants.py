@@ -1,33 +1,36 @@
-from typing import Final
+# Game Constants
 
-# Constants used throughout the game
+FPS = 60
+WINDOW_WIDTH = 800
+WINDOW_HEIGHT = 600
 
-BASE_HEALTH: Final[int] = 100
-BASE_MANA: Final[int] = 50
-BASE_ARMOR: Final[int] = 10
+# Color Constants
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
 
-# Game settings constants
+# Player Constants
+PLAYER_START_X = WINDOW_WIDTH // 2
+PLAYER_START_Y = WINDOW_HEIGHT // 2
+PLAYER_SPEED = 5
+PLAYER_LIVES = 3
 
-SCREEN_WIDTH: Final[int] = 1280
-SCREEN_HEIGHT: Final[int] = 720
-FPS: Final[int] = 60
+# Game State Constants
+GAME_ACTIVE = 1
+GAME_PAUSED = 2
+GAME_OVER = 3
 
-# Levels constants
-LEVELS: Final[list[str]] = [
-    'Beginner',
-    'Intermediate',
-    'Expert',
-    'Legendary'
-]
+# Level Constants
+LEVEL_COUNT = 10
+MAX_ENEMIES_PER_LEVEL = 5
 
-# Scoring constants
-POINTS_PER_KILL: Final[int] = 100
-POINTS_PER_OBJECTIVE: Final[int] = 500
+# Platform Constants
+PLATFORM_COLOR = GREEN
+PLATFORM_HEIGHT = 20
+PLATFORM_WIDTH = 100
 
-# Player action constants
-MOVE_UP: Final[str] = 'W'
-MOVE_DOWN: Final[str] = 'S'
-MOVE_LEFT: Final[str] = 'A'
-MOVE_RIGHT: Final[str] = 'D'
-
-# This module provides constant values for configurations.
+# Sound Constants
+SOUNDTRACK_VOLUME = 0.5
+SFX_VOLUME = 1.0
