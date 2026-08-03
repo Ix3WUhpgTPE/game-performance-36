@@ -1,42 +1,37 @@
-import random
-import json
+import time
+import numpy as np
 
-class GameError(Exception):
-    pass
-
-class Game:
+class GameEngine:
     def __init__(self):
-        self.score = 0
-        self.level = 1
-        self.max_level = 10
-        self.is_running = True
+        self.entities = []
+        self.delta_time = 0
 
-    def start_game(self):
-        try:
-            print('Game started!')
-            while self.is_running:
-                self.play_level(self.level)
-        except GameError as e:
-            print(f'Error occurred: {e}')
-            self.is_running = False
+    def add_entity(self, entity):
+        self.entities.append(entity)
 
-    def play_level(self, level):
-        if level > self.max_level:
-            raise GameError('Level exceeds max level!')
-        print(f'Playing level {level}')
-        outcome = random.choice(['win', 'lose'])
-        if outcome == 'win':
-            self.score += 10
-            print(f'Level {level} completed. Score: {self.score}')
-            self.level += 1
-        else:
-            print(f'Level {level} failed. Better luck next time!')
+    def update_entities(self):
+        start_time = time.perf_counter()
+        for entity in self.entities:
+            entity.update(self.delta_time)
+        self.delta_time = time.perf_counter() - start_time
 
-    def get_score(self):
-        return self.score
+    def calculate_average_frame_time(self, frame_times):
+        filtered_frame_times = list(filter(lambda x: x < 1 / 30, frame_times))
+        return np.mean(filtered_frame_times) if filtered_frame_times else 0
 
+class Entity:
+    def __init__(self, name):
+        self.name = name
+        self.position = np.array([0, 0])
+
+    def update(self, delta_time):
+        # Simulate some position update logic
+        self.position += np.array([delta_time * 10, delta_time * 5])
+
+# Example usage
 if __name__ == '__main__':
-    game = Game()
-    game.start_game()
-    score = game.get_score()
-    print(f'Final score: {score}')
+    engine = GameEngine()
+    engine.add_entity(Entity('Player'))
+    for _ in range(5):
+        engine.update_entities()
+    
