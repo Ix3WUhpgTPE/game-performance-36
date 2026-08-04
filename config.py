@@ -2,30 +2,25 @@ import json
 import os
 
 class ConfigLoader:
-    def __init__(self, default_config):
-        self.default_config = default_config
-        self.loaded_config = self.default_config.copy()
+    def __init__(self, default_config_path, custom_config_path=None):
+        self.default_config = self.load_config(default_config_path)
+        self.custom_config = self.load_config(custom_config_path) if custom_config_path else {}
+        self.config = self.merge_configs(self.default_config, self.custom_config)
 
-    def load_from_file(self, filepath):
-        if os.path.exists(filepath):
-            with open(filepath, 'r') as file:
-                file_config = json.load(file)
-                self.loaded_config.update(file_config)
+    def load_config(self, path):
+        if not path or not os.path.isfile(path):
+            return {}
+        with open(path, 'r') as file:
+            return json.load(file)
+
+    def merge_configs(self, default, custom):
+        config = default.copy()  # Start with default configuration
+        config.update(custom)  # Override with custom configuration
+        return config
 
     def get(self, key, default=None):
-        return self.loaded_config.get(key, default)
+        return self.config.get(key, default)
 
-# Default configuration
-DEFAULT_CONFIG = {
-    'volume': 70,
-    'resolution': '1920x1080',
-    'fullscreen': True
-}
-
-# Usage
-if __name__ == '__main__':
-    config_loader = ConfigLoader(DEFAULT_CONFIG)
-    config_loader.load_from_file('config.json')
-    volume = config_loader.get('volume')
-    resolution = config_loader.get('resolution')
-    print(f'Volume: {volume}, Resolution: {resolution}')
+# Example usage:
+# config_loader = ConfigLoader('default_config.json', 'custom_config.json')
+# db_host = config_loader.get('database_host', 'localhost')
