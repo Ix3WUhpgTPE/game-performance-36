@@ -1,49 +1,45 @@
 # Game Performance 36
 
-Game Performance 36 is a Python-based tool designed to analyze and optimize the performance metrics of gaming applications. By utilizing advanced algorithms, it provides developers with actionable insights to enhance frame rates, reduce lag, and improve user experiences in their games.
+Game Performance 36 is a Python-based application designed to analyze and optimize game performance metrics in real time. With seamless integration into existing workflows, developers can identify bottlenecks and enhance the gaming experience effectively.
 
 ## Features
 
-- **Real-time Performance Monitoring**: Continuously tracks CPU, GPU, memory usage, and other critical resources to identify bottlenecks during gameplay.
-- **Customizable Profiling Options**: Offers flexible configurations allowing developers to tailor performance analysis according to specific game requirements.
-- **Comprehensive Reporting**: Generates detailed reports on performance metrics and issues, helping developers pinpoint areas for improvement.
-- **Integration with Popular Game Engines**: Easily integrates with Unity and Unreal Engine, ensuring a smooth workflow for game developers.
+- **Real-Time Monitoring**: Track CPU, GPU, and memory usage while your game runs, providing essential data to diagnose performance issues.
+- **Custom Reporting**: Generate visual reports and graphs that summarize key performance metrics over time, helping identify trends and anomalies.
+- **Game-Specific Profiles**: Create and save tailored profiles for different games, allowing quick analysis with optimal settings for various gaming environments.
+- **Cross-Platform Compatibility**: Works seamlessly across Windows, macOS, and Linux, ensuring that all developers can benefit from performance insights regardless of their platform.
 
 ## Installation
 
-To get started with Game Performance 36, clone the repository and install the required packages:
+To get started with Game Performance 36, follow these simple steps:
 
-```bash
-git clone https://github.com/Developer/game-performance-36.git
-cd game-performance-36
-pip install -r requirements.txt
-```
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Developer/game-performance-36.git
+   ```
+2. Navigate into the project directory:
+   ```bash
+   cd game-performance-36
+   ```
+3. Install the required dependencies using pip:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 ## Basic Usage
 
-Here’s a quick way to start analyzing your game’s performance:
+After installation, you can start monitoring your game's performance with the following command:
 
-1. Import the library in your game script:
-   ```python
-   from game_performance import PerformanceAnalyzer
-   ```
+```bash
+python main.py --game <path_to_your_game_executable>
+```
 
-2. Initialize the analyzer and start monitoring:
-   ```python
-   analyzer = PerformanceAnalyzer()
-   analyzer.start_monitoring()
-   ```
-
-3. At the end of your game session, generate a performance report:
-   ```python
-   report = analyzer.generate_report()
-   print(report)
-   ```
-
-By following these steps, you can quickly gather insightful performance data that will help you optimize your gaming application.
+This command will launch the performance tracker and display real-time metrics in the console.
 
 ## License
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)  
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+Game Performance 36 is licensed under the MIT License. For more details, please refer to the [LICENSE](LICENSE) file in the repository. 
+
+Enhance your game development process today by integrating Game Performance 36 into your toolkit!
