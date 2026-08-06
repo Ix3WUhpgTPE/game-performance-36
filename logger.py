@@ -1,36 +1,35 @@
 import logging
+from logging.handlers import RotatingFileHandler
 
-class GameLogger:
-    def __init__(self, name):
+class CustomLogger:
+    def __init__(self, name, log_file, max_bytes=1024*1024, backup_count=3):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.DEBUG)
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
+        handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ch.setFormatter(formatter)
-        self.logger.addHandler(ch)
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
 
-    def log_info(self, message):
-        self.logger.info(message)
+    def debug(self, msg):
+        self.logger.debug(msg)
 
-    def log_warning(self, message):
-        self.logger.warning(message)
+    def info(self, msg):
+        self.logger.info(msg)
 
-    def log_error(self, message):
-        self.logger.error(message)
+    def warning(self, msg):
+        self.logger.warning(msg)
 
-    def validate_input(self, input_value):
-        if not isinstance(input_value, (int, str)):
-            self.log_error('Invalid input type')
-            return False
-        return True
+    def error(self, msg):
+        self.logger.error(msg)
 
-logger = GameLogger('GamePerformanceLogger')
+    def critical(self, msg):
+        self.logger.critical(msg)
 
-# Sample input processing loop
-input_values = [10, 'valid_input', None]
-for value in input_values:
-    if logger.validate_input(value):
-        logger.log_info(f'Processing: {value}')
-    else:
-        logger.log_warning(f'Skipped invalid input: {value}')
+# Example usage
+if __name__ == '__main__':
+    log = CustomLogger('game_logger', 'game_logs.log')
+    log.info('Game started')
+    log.debug('Loading resources...')
+    log.warning('Low memory warning!')
+    log.error('Failed to load asset')
+    log.critical('Game crashed!')
