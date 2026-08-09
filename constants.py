@@ -1,36 +1,39 @@
-# Game Constants
+import time
+import random
 
-FPS = 60
-WINDOW_WIDTH = 800
-WINDOW_HEIGHT = 600
+RETRY_LIMIT = 5
+RETRY_DELAY = 2
 
-# Color Constants
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
+class NetworkError(Exception):
+    pass
 
-# Player Constants
-PLAYER_START_X = WINDOW_WIDTH // 2
-PLAYER_START_Y = WINDOW_HEIGHT // 2
-PLAYER_SPEED = 5
-PLAYER_LIVES = 3
 
-# Game State Constants
-GAME_ACTIVE = 1
-GAME_PAUSED = 2
-GAME_OVER = 3
+def perform_network_operation():
+    # Simulate network operation with a chance of failure
+    if random.random() < 0.7:
+        raise NetworkError("Failed to connect")
+    return "Success"
 
-# Level Constants
-LEVEL_COUNT = 10
-MAX_ENEMIES_PER_LEVEL = 5
 
-# Platform Constants
-PLATFORM_COLOR = GREEN
-PLATFORM_HEIGHT = 20
-PLATFORM_WIDTH = 100
-
-# Sound Constants
-SOUNDTRACK_VOLUME = 0.5
-SFX_VOLUME = 1.0
+def retry_network_operation():
+    attempts = 0
+    while attempts < RETRY_LIMIT:
+        try:
+            result = perform_network_operation()
+            return result
+        except NetworkError as e:
+            attempts += 1
+            print(f"Attempt {attempts} failed: {e}")
+            if attempts < RETRY_LIMIT:
+                time.sleep(RETRY_DELAY)
+            else:
+                print("All attempts failed.")
+                raise
+    
+# Example usage
+# if __name__ == '__main__':
+#     try:
+#         result = retry_network_operation()
+#         print(result)
+#     except NetworkError:
+#         print("Operation ultimately failed")
