@@ -1,25 +1,34 @@
 import time
 import random
-import requests
 
-def retry_network_operation(max_retries=5, backoff_factor=1.0):
+class NetworkError(Exception):
+    pass
+
+def retry_on_failure(max_retries=3, wait_time=2):
     def decorator(func):
         def wrapper(*args, **kwargs):
-            retries = 0
-            while retries < max_retries:
+            attempts = 0
+            while attempts < max_retries:
                 try:
                     return func(*args, **kwargs)
-                except requests.ConnectionError as e:
-                    retries += 1
-                    wait_time = backoff_factor * (2 ** (retries - 1)) + random.uniform(0, 1)
-                    print(f"Retry {retries}/{max_retries}, waiting {wait_time:.2f} seconds...")
+                except NetworkError:
+                    attempts += 1
+                    if attempts == max_retries:
+                        raise
+                    print(f'Attempt {attempts} failed, retrying in {wait_time} seconds...')
                     time.sleep(wait_time)
-            raise Exception(f"Network operation failed after {max_retries} retries")
         return wrapper
     return decorator
 
-@retry_network_operation(max_retries=3)
-def fetch_data(url):
-    response = requests.get(url)
-    response.raise_for_status()
-    return response.json()
+@retry_on_failure(max_retries=5, wait_time=1)
+def fetch_data_from_network():
+    if random.choice([True, False]):
+        raise NetworkError('Failed to fetch data')
+    return "Data retrieved!"
+
+if __name__ == '__main__':
+    try:
+        result = fetch_data_from_network()
+        print(result)
+    except NetworkError:
+        print('All retries failed.')
