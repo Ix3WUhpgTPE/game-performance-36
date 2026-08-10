@@ -1,29 +1,30 @@
-class ValidationError(Exception):
-    def __init__(self, message):
+class GameError(Exception):
+    """Base class for game-related errors."""
+    pass
+
+class PlayerError(GameError):
+    """Raised when there is an issue with the player."""
+    def __init__(self, message, player_id):
         super().__init__(message)
-        self.message = message
+        self.player_id = player_id
+        
+class GameStateError(GameError):
+    """Raised when there is a state inconsistency in the game."""
+    def __init__(self, message, state):
+        super().__init__(message)
+        self.state = state
+        
+def handle_game_error(error):
+    if isinstance(error, PlayerError):
+        return {"error": "Player issue", "player_id": error.player_id, "message": str(error)}
+    elif isinstance(error, GameStateError):
+        return {"error": "Game state issue", "state": error.state, "message": str(error)}
+    return {"error": "General game error", "message": str(error)}
 
-
-def validate_input(user_input):
-    if not isinstance(user_input, str):
-        raise ValidationError('Input must be a string')
-    if not user_input:
-        raise ValidationError('Input cannot be empty')
-    if len(user_input) > 50:
-        raise ValidationError('Input cannot exceed 50 characters')
-
-
-def main_loop():
-    while True:
-        user_input = input('Enter a command: ')
-        try:
-            validate_input(user_input)
-            print(f'Processed input: {user_input}')
-        except ValidationError as e:
-            print(f'Error: {e.message}')
-        except Exception as e:
-            print(f'Unexpected error: {str(e)}')
-
-
+# Usage example:
 if __name__ == '__main__':
-    main_loop()
+    try:
+        raise PlayerError("Player not found", player_id=42)
+    except GameError as e:
+        error_info = handle_game_error(e)
+        print(error_info)
