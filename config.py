@@ -1,29 +1,13 @@
-from typing import Dict, Any
+import os
 
-class GameConfig:
-    """
-    Class to handle game configurations.
-    """
-    def __init__(self, config: Dict[str, Any]) -> None:
-        """Initialize with game configuration dictionary."""
-        self.config = config
+class Config:
+    def __init__(self):
+        self.debug = self.get_env_variable('DEBUG', 'False') == 'True'
+        self.database_url = self.get_env_variable('DATABASE_URL', 'sqlite:///default.db')
+        self.api_key = self.get_env_variable('API_KEY')
+        self.log_level = self.get_env_variable('LOG_LEVEL', 'INFO')
 
-    def get_setting(self, key: str, default: Any = None) -> Any:
-        """Get a setting from the configuration, returns default if not found."""
-        return self.config.get(key, default)
+    def get_env_variable(self, var_name, default_value=None):
+        return os.environ.get(var_name, default_value)
 
-    def set_setting(self, key: str, value: Any) -> None:
-        """Set a configuration setting to a new value."""
-        self.config[key] = value
-
-    def load_from_file(self, filepath: str) -> None:
-        """Load configuration from a JSON file."""
-        import json
-        with open(filepath, 'r') as file:
-            self.config.update(json.load(file))
-
-    def save_to_file(self, filepath: str) -> None:
-        """Save the current configuration to a JSON file."""
-        import json
-        with open(filepath, 'w') as file:
-            json.dump(self.config, file, indent=4)
+config = Config()
