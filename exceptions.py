@@ -1,30 +1,36 @@
 class GameError(Exception):
-    """Base class for game-related errors."""
     pass
 
-class PlayerError(GameError):
-    """Raised when there is an issue with the player."""
-    def __init__(self, message, player_id):
-        super().__init__(message)
-        self.player_id = player_id
-        
-class GameStateError(GameError):
-    """Raised when there is a state inconsistency in the game."""
-    def __init__(self, message, state):
-        super().__init__(message)
-        self.state = state
-        
-def handle_game_error(error):
-    if isinstance(error, PlayerError):
-        return {"error": "Player issue", "player_id": error.player_id, "message": str(error)}
-    elif isinstance(error, GameStateError):
-        return {"error": "Game state issue", "state": error.state, "message": str(error)}
-    return {"error": "General game error", "message": str(error)}
+class ResourceNotFound(GameError):
+    def __init__(self, resource_name):
+        self.resource_name = resource_name
+        super().__init__(f'Resource not found: {resource_name}')
 
-# Usage example:
+class InvalidAction(GameError):
+    def __init__(self, action):
+        self.action = action
+        super().__init__(f'Invalid action attempted: {action}')
+
+class GameStateError(GameError):
+    def __init__(self, state):
+        self.state = state
+        super().__init__(f'Game state error: {state}')
+
+# Custom error handling for game instances
+
+def handle_exception(exception):
+    if isinstance(exception, ResourceNotFound):
+        print(f'Error: {exception}')
+    elif isinstance(exception, InvalidAction):
+        print(f'Error: {exception}')
+    elif isinstance(exception, GameStateError):
+        print(f'Error: {exception}')
+    else:
+        print(f'An unknown error occurred: {exception}')
+
+# Example usage
 if __name__ == '__main__':
     try:
-        raise PlayerError("Player not found", player_id=42)
+        raise ResourceNotFound('Weapon')
     except GameError as e:
-        error_info = handle_game_error(e)
-        print(error_info)
+        handle_exception(e)
