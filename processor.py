@@ -1,41 +1,33 @@
-import time
-import random
+import numpy as np
 
 class GameProcessor:
     def __init__(self):
-        self.state = 'initial'
-        self.score = 0
+        self.frames = 0
+        self.elapsed_time = 0
+        self.performance_metrics = {}
 
-    def update_state(self, new_state):
-        if new_state in ['running', 'paused', 'stopped']:
-            self.state = new_state
-        else:
-            raise ValueError('Invalid state: ' + new_state)
+    def update_performance_metrics(self, frame_time):
+        self.frames += 1
+        self.elapsed_time += frame_time
+        self.performance_metrics['fps'] = self.frames / self.elapsed_time
 
-    def add_score(self, points):
-        if points < 0:
-            raise ValueError('Points cannot be negative')
-        self.score += points
+    def process_frame(self, frame_data):
+        # Perform some computationally intensive operations
+        processed_data = self.intensive_computation(frame_data)
+        self.update_performance_metrics(self.get_frame_time())
+        return processed_data
 
-    def reset(self):
-        self.state = 'initial'
-        self.score = 0
+    def intensive_computation(self, frame_data):
+        # Using numpy for optimized computation
+        return np.sqrt(frame_data)
 
-    def random_event(self):
-        events = ['bonus', 'minus', 'none']
-        event = random.choice(events)
-        if event == 'bonus':
-            self.add_score(10)
-            return 'You gained a bonus!'
-        elif event == 'minus':
-            self.add_score(-5)
-            return 'You lost some points!'
-        return 'No event happened.'
+    def get_frame_time(self):
+        # Return simulated frame time
+        return 1.0 / 60  # Simulating 60 FPS
 
-    def simulate_game(self, duration):
-        self.update_state('running')
-        end_time = time.time() + duration
-        while time.time() < end_time:
-            print(self.random_event())
-            time.sleep(1)
-        self.update_state('stopped')
+    def reset_metrics(self):
+        self.frames = 0
+        self.elapsed_time = 0
+        self.performance_metrics = {}
+        
+# Assuming this processor will be instantiated and called within the game loop
