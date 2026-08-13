@@ -1,33 +1,31 @@
-import numpy as np
+import json
+from typing import List, Dict, Any
 
-class GameProcessor:
-    def __init__(self):
-        self.frames = 0
-        self.elapsed_time = 0
-        self.performance_metrics = {}
+class GameDataProcessor:
+    def __init__(self, data: List[Dict[str, Any]]) -> None:
+        self.data = data
 
-    def update_performance_metrics(self, frame_time):
-        self.frames += 1
-        self.elapsed_time += frame_time
-        self.performance_metrics['fps'] = self.frames / self.elapsed_time
+    def filter_by_score(self, threshold: float) -> List[Dict[str, Any]]:
+        return [entry for entry in self.data if entry.get('score', 0) >= threshold]
 
-    def process_frame(self, frame_data):
-        # Perform some computationally intensive operations
-        processed_data = self.intensive_computation(frame_data)
-        self.update_performance_metrics(self.get_frame_time())
-        return processed_data
+    def aggregate_scores(self) -> Dict[str, float]:
+        score_aggregation = {}
+        for entry in self.data:
+            player = entry.get('player', 'Unknown')
+            score_aggregation[player] = score_aggregation.get(player, 0) + entry.get('score', 0)
+        return score_aggregation
 
-    def intensive_computation(self, frame_data):
-        # Using numpy for optimized computation
-        return np.sqrt(frame_data)
+    def to_json(self) -> str:
+        return json.dumps(self.data, indent=4)
 
-    def get_frame_time(self):
-        # Return simulated frame time
-        return 1.0 / 60  # Simulating 60 FPS
-
-    def reset_metrics(self):
-        self.frames = 0
-        self.elapsed_time = 0
-        self.performance_metrics = {}
-        
-# Assuming this processor will be instantiated and called within the game loop
+# Sample usage
+if __name__ == '__main__':
+    sample_data = [
+        {'player': 'Alice', 'score': 150},
+        {'player': 'Bob', 'score': 300},
+        {'player': 'Alice', 'score': 200},
+    ]
+    processor = GameDataProcessor(sample_data)
+    print(processor.filter_by_score(200))
+    print(processor.aggregate_scores())
+    print(processor.to_json())
