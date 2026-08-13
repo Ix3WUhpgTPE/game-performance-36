@@ -1,25 +1,18 @@
-import re
+def validate_input(user_input):
+    if not isinstance(user_input, str):
+        return False
+    if any(char in user_input for char in ['$', '%', '^']):
+        return False
+    return True
 
-def is_valid_email(email):
-    regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return re.match(regex, email) is not None
+def main_processing_loop():
+    while True:
+        user_input = input('Enter command: ')
+        if not validate_input(user_input):
+            print('Invalid input, please try again.');
+            continue
+        # Continue processing the validated input
+        print(f'Processing: {user_input}')
 
-
-def is_valid_username(username):
-    return len(username) >= 3 and len(username) <= 20 and username.isalnum()
-
-
-def is_valid_password(password):
-    return (len(password) >= 8 and
-            any(char.isdigit() for char in password) and
-            any(char.islower() for char in password) and
-            any(char.isupper() for char in password) and
-            any(char in '!@#$%^&*()-+=' for char in password))
-
-
-def is_within_bounds(value, min_value, max_value):
-    return min_value <= value <= max_value
-
-
-def is_positive_integer(value):
-    return isinstance(value, int) and value > 0
+if __name__ == '__main__':
+    main_processing_loop()
