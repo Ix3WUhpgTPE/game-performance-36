@@ -1,36 +1,28 @@
-class GameError(Exception):
+class InvalidGameStateError(Exception):
+    """Raised when the game state is invalid."""
     pass
 
-class ResourceNotFound(GameError):
-    def __init__(self, resource_name):
-        self.resource_name = resource_name
-        super().__init__(f'Resource not found: {resource_name}')
+class PlayerNotFoundError(Exception):
+    """Raised when a player is not found in the game."""
+    def __init__(self, player_id):
+        super().__init__(f'Player with ID {player_id} not found.')
+        self.player_id = player_id
 
-class InvalidAction(GameError):
-    def __init__(self, action):
-        self.action = action
-        super().__init__(f'Invalid action attempted: {action}')
+class GameOverError(Exception):
+    """Raised when an action is attempted after the game is over."""
+    def __init__(self):
+        super().__init__('Cannot perform action: game is over.')
 
-class GameStateError(GameError):
-    def __init__(self, state):
-        self.state = state
-        super().__init__(f'Game state error: {state}')
+class InsufficientResourcesError(Exception):
+    """Raised when a player tries to perform an action without enough resources."""
+    def __init__(self, resource, needed, available):
+        super().__init__(f'Insufficient {resource}: needed {needed}, available {available}.')
+        self.resource = resource
+        self.needed = needed
+        self.available = available
 
-# Custom error handling for game instances
-
-def handle_exception(exception):
-    if isinstance(exception, ResourceNotFound):
-        print(f'Error: {exception}')
-    elif isinstance(exception, InvalidAction):
-        print(f'Error: {exception}')
-    elif isinstance(exception, GameStateError):
-        print(f'Error: {exception}')
-    else:
-        print(f'An unknown error occurred: {exception}')
-
-# Example usage
-if __name__ == '__main__':
-    try:
-        raise ResourceNotFound('Weapon')
-    except GameError as e:
-        handle_exception(e)
+class InvalidMoveError(Exception):
+    """Raised when a move is invalid in the game context."""
+    def __init__(self, move):
+        super().__init__(f'Invalid move attempted: {move}.')
+        self.move = move
