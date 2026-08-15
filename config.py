@@ -1,23 +1,34 @@
 import json
-from pathlib import Path
+import os
 
-def load_config(file_path: str, defaults: dict) -> dict:
-    config_path = Path(file_path)
-    if config_path.is_file():
-        with open(config_path) as config_file:
-            try:
-                config = json.load(config_file)
-            except json.JSONDecodeError:
-                print('Error decoding JSON, using defaults')
-                return defaults
-    else:
-        print('Config file not found, using defaults')
-        return defaults
+class ConfigLoader:
+    def __init__(self, default_config, config_file=None):
+        self.default_config = default_config
+        self.config_file = config_file
+        self.config = self.load_config()  
 
-    # Merge defaults with loaded configuration
-    return {**defaults, **config}
+    def load_config(self):
+        config = self.default_config.copy()
+        if self.config_file and os.path.exists(self.config_file):
+            with open(self.config_file, 'r') as f:
+                file_config = json.load(f)
+                config.update(file_config)
+        return config  
 
-if __name__ == '__main__':
-    default_config = {'setting1': 'value1', 'setting2': 10}
-    loaded_config = load_config('config.json', default_config)
-    print(loaded_config)
+    def get(self, key, default=None):
+        return self.config.get(key, default)
+
+    def set(self, key, value):
+        self.config[key] = value
+
+    def save(self):
+        if self.config_file:
+            with open(self.config_file, 'w') as f:
+                json.dump(self.config, f, indent=4)
+
+# Example usage:
+# default_config = {'resolution': '1920x1080', 'volume': 75}
+# loader = ConfigLoader(default_config, 'config.json')
+# print(loader.get('resolution'))
+# loader.set('volume', 85)
+# loader.save()
