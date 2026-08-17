@@ -1,21 +1,29 @@
-def validate_input(user_input):
-    if not isinstance(user_input, str):
-        raise ValueError('Input must be a string')
-    if len(user_input) == 0:
-        raise ValueError('Input cannot be empty')
-    if not user_input.isalnum():
-        raise ValueError('Input must be alphanumeric')
-    return True
+import re
 
-def main_processing_loop():
-    while True:
-        user_input = input('Enter your command: ')
-        try:
-            validate_input(user_input)
-            # Process the valid input here
-            print(f'Processing: {user_input}')
-        except ValueError as e:
-            print(f'Input error: {e}')
+def is_valid_username(username):
+    pattern = '^[a-zA-Z0-9_]{3,16}$'
+    return bool(re.match(pattern, username))
 
-if __name__ == '__main__':
-    main_processing_loop()
+
+def is_valid_email(email):
+    pattern = '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return bool(re.match(pattern, email))
+
+
+def is_valid_password(password):
+    if len(password) < 8:
+        return False
+    has_digit = any(char.isdigit() for char in password)
+    has_upper = any(char.isupper() for char in password)
+    has_lower = any(char.islower() for char in password)
+    return has_digit and has_upper and has_lower
+
+
+def validate_user_data(username, email, password):
+    if not is_valid_username(username):
+        return 'Invalid username'
+    if not is_valid_email(email):
+        return 'Invalid email'
+    if not is_valid_password(password):
+        return 'Invalid password'
+    return 'User data is valid'
