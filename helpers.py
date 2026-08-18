@@ -1,23 +1,27 @@
-import re
+import random
+import math
 
-def validate_input(user_input):
-    if not isinstance(user_input, str):
-        raise ValueError('Input must be a string')
-    if len(user_input) == 0:
-        raise ValueError('Input cannot be empty')
-    if not re.match('^[a-zA-Z0-9_]*$', user_input):
-        raise ValueError('Input can only contain alphanumeric characters and underscores')
-    return True
+class GameHelper:
+    @staticmethod
+    def generate_random_position(game_area_size):
+        x = random.randint(0, game_area_size[0])
+        y = random.randint(0, game_area_size[1])
+        return (x, y)
 
-def process_game_input(user_input):
-    try:
-        validate_input(user_input)
-        # Game input processing logic goes here
-        return f'Processed input: {user_input}'
-    except ValueError as e:
-        return str(e)
+    @staticmethod
+    def calculate_distance(point1, point2):
+        return math.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
 
-if __name__ == '__main__':
-    test_inputs = ['valid_input123', '', 'invalid@input', 42]
-    for input_val in test_inputs:
-        print(process_game_input(input_val))
+    @staticmethod
+    def spawn_enemy(enemies, game_area_size):
+        if len(enemies) < 10:
+            position = GameHelper.generate_random_position(game_area_size)
+            enemies.append(position)
+
+    @staticmethod
+    def clear_enemies(enemies):
+        enemies.clear()
+
+    @staticmethod
+    def display_score(score):
+        print(f'Score: {score}')
