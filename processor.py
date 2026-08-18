@@ -1,31 +1,39 @@
-import json
-from typing import List, Dict, Any
+import time
+import requests
 
-class GameDataProcessor:
-    def __init__(self, data: List[Dict[str, Any]]) -> None:
-        self.data = data
+class NetworkError(Exception):
+    pass
 
-    def filter_by_score(self, threshold: float) -> List[Dict[str, Any]]:
-        return [entry for entry in self.data if entry.get('score', 0) >= threshold]
+class NetworkProcessor:
+    def __init__(self, max_retries=5, backoff_factor=2):
+        self.max_retries = max_retries
+        self.backoff_factor = backoff_factor
 
-    def aggregate_scores(self) -> Dict[str, float]:
-        score_aggregation = {}
-        for entry in self.data:
-            player = entry.get('player', 'Unknown')
-            score_aggregation[player] = score_aggregation.get(player, 0) + entry.get('score', 0)
-        return score_aggregation
+    def fetch_data(self, url):
+        retries = 0
+        while retries < self.max_retries:
+            try:
+                response = requests.get(url)
+                response.raise_for_status()
+                return response.json()
+            except requests.exceptions.RequestException as e:
+                retries += 1
+                if retries == self.max_retries:
+                    raise NetworkError(f'Failed to fetch data after {retries} attempts') from e
+                wait_time = self.backoff_factor ** retries
+                print(f'Retrying in {wait_time} seconds...')
+                time.sleep(wait_time)
 
-    def to_json(self) -> str:
-        return json.dumps(self.data, indent=4)
+    def process_data(self, url):
+        try:
+            data = self.fetch_data(url)
+            # Perform processing on data
+            return data
+        except NetworkError as e:
+            print(e)
+            return None
 
-# Sample usage
 if __name__ == '__main__':
-    sample_data = [
-        {'player': 'Alice', 'score': 150},
-        {'player': 'Bob', 'score': 300},
-        {'player': 'Alice', 'score': 200},
-    ]
-    processor = GameDataProcessor(sample_data)
-    print(processor.filter_by_score(200))
-    print(processor.aggregate_scores())
-    print(processor.to_json())
+    processor = NetworkProcessor()
+    data = processor.process_data('https://api.example.com/data')
+    print(data)
