@@ -1,39 +1,50 @@
-import time
-import requests
+import json
+from collections import Counter
 
-class NetworkError(Exception):
-    pass
+def process_gaming_data(raw_data):
+    try:
+        data = json.loads(raw_data)
+    except (json.JSONDecodeError, TypeError):
+        data = []
+    if not isinstance(data, list):
+        data = [data] if data else []
 
-class NetworkProcessor:
-    def __init__(self, max_retries=5, backoff_factor=2):
-        self.max_retries = max_retries
-        self.backoff_factor = backoff_factor
+    player_stats = Counter()
+    performance_scores = []
 
-    def fetch_data(self, url):
-        retries = 0
-        while retries < self.max_retries:
-            try:
-                response = requests.get(url)
-                response.raise_for_status()
-                return response.json()
-            except requests.exceptions.RequestException as e:
-                retries += 1
-                if retries == self.max_retries:
-                    raise NetworkError(f'Failed to fetch data after {retries} attempts') from e
-                wait_time = self.backoff_factor ** retries
-                print(f'Retrying in {wait_time} seconds...')
-                time.sleep(wait_time)
+    for entry in data:
+        if isinstance(entry, dict):
+            player = entry.get('player', 'unknown')
+            score = entry.get('score', 0)
+            kills = entry.get('kills', 0)
+            synergy = (score * 0.6 + kills * 0.4) ** 0.5
+            player_stats[player] += synergy
+            performance_scores.append(synergy)
 
-    def process_data(self, url):
-        try:
-            data = self.fetch_data(url)
-            # Perform processing on data
-            return data
-        except NetworkError as e:
-            print(e)
-            return None
+    if not performance_scores:
+        return {"total_performance": 0, "top_player": None, "average_synergy": 0}
 
-if __name__ == '__main__':
-    processor = NetworkProcessor()
-    data = processor.process_data('https://api.example.com/data')
-    print(data)
+    total_perf = sum(performance_scores)
+    avg_synergy = total_perf / len(performance_scores)
+
+    top_player = player_stats.most_common(1)[0][0] if player_stats else None
+
+    sorted_scores = sorted(performance_scores)
+    n = len(sorted_scores)
+    if n % 2 == 1:
+        median = sorted_scores[n//2]
+    else:
+        median = (sorted_scores[n//2-1] + sorted_scores[n//2]) / 2
+
+    return {
+        "total_performance": round(total_perf, 2),
+        "top_player": top_player,
+        "average_synergy": round(avg_synergy, 2),
+        "median_synergy": round(median, 2),
+        "player_distribution": dict(player_stats)
+    }
+
+if __name__ == "__main__":
+    sample_data = '[{"player": "Alex", "score": 1500, "kills": 25}, {"player": "Sam", "score": 1200, "kills": 18}, {"player": "Alex", "score": 1800, "kills": 30}]'
+    result = process_gaming_data(sample_data)
+    print(result)
