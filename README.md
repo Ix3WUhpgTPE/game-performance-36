@@ -1,47 +1,44 @@
-# Game Performance 36
+# game-performance-36
 
-Game Performance 36 is a Python-based project designed to analyze and enhance the performance of gaming applications. This tool focuses on identifying bottlenecks and optimizing resource usage, allowing developers to create smoother, more enjoyable gaming experiences.
+game-performance-36 is a Python library that helps game developers monitor and optimize the performance of their titles. It tracks key metrics like frame times, CPU load, and memory consumption in real time, allowing for quick identification of optimization opportunities.
 
 ## Features
-
-- **Performance Monitoring**: Track crucial metrics such as frame rate, memory usage, and CPU/GPU load in real-time.
-- **Bottleneck Detection**: Automatically analyze game performance and pinpoint areas that require optimization.
-- **Custom Reports**: Generate detailed reports that provide insights into performance trends and suggest potential improvements.
-- **Cross-Platform Support**: Compatible with major operating systems including Windows, macOS, and Linux, ensuring wide usability.
+- Precise frame time profiling with support for custom game loop phases
+- Real-time alerts for performance regressions during development
+- Built-in exporters for JSON, CSV, and visual reports
+- Seamless integration with Pygame and other Python game frameworks
 
 ## Installation
 
-To set up Game Performance 36, simply clone this repository and install the necessary dependencies. Use the following commands in your terminal:
+```bash
+pip install game-performance-36
+```
+
+For the latest development version:
 
 ```bash
-git clone https://github.com/Developer/game-performance-36.git
+git clone https://github.com/developer/game-performance-36.git
 cd game-performance-36
-pip install -r requirements.txt
+pip install -e .
 ```
 
-## Basic Usage
-
-Once installed, you can start monitoring your game's performance with just a few commands. Here is a simple example:
+## Usage
 
 ```python
-from game_performance import PerformanceMonitor
+from game_performance_36 import PerformanceProfiler
 
-# Initialize the performance monitor
-monitor = PerformanceMonitor(game_name="MyAwesomeGame")
+profiler = PerformanceProfiler()
 
-# Start monitoring
-monitor.start()
+while running:
+    profiler.start_frame()
+    update_game()
+    render_game()
+    profiler.end_frame()
 
-# Integrate into your game loop
-while True:
-    monitor.update_metrics()  # This will update performance metrics in real-time
-    if monitor.check_bottlenecks():
-        print("Bottleneck detected! Review the performance report.")
+    if profiler.should_report():
+        profiler.save_report("performance.json")
 ```
-
-This example demonstrates how to integrate Game Performance 36 into a gaming loop, allowing for continuous performance tracking.
 
 ## License
 
-![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)  
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
