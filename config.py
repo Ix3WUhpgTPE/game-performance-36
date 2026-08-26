@@ -1,34 +1,37 @@
 import json
 import os
+from typing import Any, Dict
 
-class ConfigLoader:
-    def __init__(self, default_config, config_file=None):
-        self.default_config = default_config
-        self.config_file = config_file
-        self.config = self.load_config()  
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "resolution": [1920, 1080],
+    "vsync": True,
+    "target_fps": 144,
+    "shader_quality": "ultra"
+}
 
-    def load_config(self):
-        config = self.default_config.copy()
-        if self.config_file and os.path.exists(self.config_file):
-            with open(self.config_file, 'r') as f:
-                file_config = json.load(f)
-                config.update(file_config)
-        return config  
+class GameConfig:
+    def __init__(self, config_path: str = "settings.json") -> None:
+        self.path = config_path
+        self.settings = self._load_and_merge()
 
-    def get(self, key, default=None):
-        return self.config.get(key, default)
+    def _load_and_merge(self) -> Dict[str, Any]:
+        config = DEFAULT_CONFIG.copy()
+        if os.path.exists(self.path):
+            try:
+                with open(self.path, "r", encoding="utf-8") as f:
+                    user_data = json.load(f)
+                    config.update({k: v for k, v in user_data.items() if k in config})
+            except (json.JSONDecodeError, IOError):
+                pass
+        return config
 
-    def set(self, key, value):
-        self.config[key] = value
+    def __getattr__(self, name: str) -> Any:
+        if name in self.settings:
+            return self.settings[name]
+        raise AttributeError(f"'GameConfig' object has no attribute '{name}'")
 
-    def save(self):
-        if self.config_file:
-            with open(self.config_file, 'w') as f:
-                json.dump(self.config, f, indent=4)
+    def save(self) -> None:
+        with open(self.path, "w", encoding="utf-8") as f:
+            json.dump(self.settings, f, indent=4)
 
-# Example usage:
-# default_config = {'resolution': '1920x1080', 'volume': 75}
-# loader = ConfigLoader(default_config, 'config.json')
-# print(loader.get('resolution'))
-# loader.set('volume', 85)
-# loader.save()
+config = GameConfig()
