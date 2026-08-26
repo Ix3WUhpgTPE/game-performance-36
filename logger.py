@@ -1,34 +1,32 @@
 import logging
+from logging.handlers import RotatingFileHandler
+import os
 
-class GameLogger:
-    def __init__(self, name):
+class GamingPerformanceLogger:
+    def __init__(self, name="game_perf", log_file="game_metrics.log", max_bytes=5*1024*1024, backup_count=3):
         self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.INFO)
-        handler = logging.FileHandler(f'{name}.log')
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+        self.logger.setLevel(logging.DEBUG)
+        
+        if not self.logger.handlers:
+            formatter = logging.Formatter(
+                "[%(asctime)s] [%(levelname)s] (FPS/RAM): %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S"
+            )
+            
+            console_handler = logging.StreamHandler()
+            console_handler.setLevel(logging.INFO)
+            console_handler.setFormatter(formatter)
+            
+            file_handler = RotatingFileHandler(
+                log_file, maxBytes=max_bytes, backupCount=backup_count
+            )
+            file_handler.setLevel(logging.DEBUG)
+            file_handler.setFormatter(formatter)
+            
+            self.logger.addHandler(console_handler)
+            self.logger.addHandler(file_handler)
 
-    def info(self, message):
-        self.logger.info(message)
+    def get_logger(self):
+        return self.logger
 
-    def warning(self, message):
-        self.logger.warning(message)
-
-    def error(self, message):
-        self.logger.error(message)
-
-    def debug(self, message):
-        self.logger.debug(message)
-
-    def critical(self, message):
-        self.logger.critical(message)
-
-# Example usage:
-if __name__ == '__main__':
-    game_logger = GameLogger('game_performance')
-    game_logger.info('Game started')
-    game_logger.warning('Low memory warning')
-    game_logger.error('An error occurred')
-    game_logger.debug('Debug information')
-    game_logger.critical('Critical error!')
+setup_logger = GamingPerformanceLogger().get_logger()
