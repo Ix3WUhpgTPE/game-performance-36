@@ -1,75 +1,44 @@
 import json
 import os
-from copy import deepcopy
-def deep_merge(base, override):
-    result = deepcopy(base)
-    for key, value in override.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
+from typing import Any, Dict, Optional
+
 class ConfigLoader:
-    def __init__(self, config_file="config.json"):
-        self.config_file = config_file
-        self.defaults = {
-            "game": {
-                "title": "GamePerformance36",
-                "version": "1.0"
-            },
-            "video": {
-                "resolution": "1920x1080",
-                "fullscreen": False,
-                "fps_limit": 60,
-                "quality": "medium"
-            },
-            "audio": {
-                "master_volume": 1.0,
-                "effects": True,
-                "music": True
-            },
-            "controls": {
-                "sensitivity": 1.0,
-                "invert_y": False
-            }
-        }
-        self.config = deepcopy(self.defaults)
-        self._load_config()
-    def _load_config(self):
-        if os.path.isfile(self.config_file):
-            try:
-                with open(self.config_file, "r", encoding="utf-8") as f:
-                    user_config = json.load(f)
-                self.config = deep_merge(self.defaults, user_config)
-            except (json.JSONDecodeError, OSError):
-                self.config = deepcopy(self.defaults)
-        else:
-            self._save_config()
-    def _save_config(self):
-        with open(self.config_file, "w", encoding="utf-8") as f:
-            json.dump(self.config, f, indent=2)
+    def __init__(self, defaults: Optional[Dict[str, Any]] = None, config_path: Optional[str] = None):
+        if defaults is None:
+            defaults = {"resolution": (1920, 1080), "fps_limit": 60, "fullscreen": True, "volume": 0.8, "graphics_quality": "high", "vsync": True}
+        self._config = defaults.copy()
+        self._load_from_env()
+        if config_path and os.path.isfile(config_path):
+            self._load_from_file(config_path)
+    def _load_from_env(self):
+        for key, current in list(self._config.items()):
+            env_key = "GAME_" + key.upper()
+            if env_key in os.environ:
+                val = os.environ[env_key]
+                if isinstance(current, bool):
+                    self._config[key] = val.lower() in ("true", "1", "yes")
+                elif isinstance(current, int):
+                    try: self._config[key] = int(val)
+                    except ValueError: pass
+                elif isinstance(current, float):
+                    try: self._config[key] = float(val)
+                    except ValueError: pass
+                else:
+                    self._config[key] = val
+    def _load_from_file(self, path):
+        try:
+            with open(path, "r") as f:
+                for k, v in json.load(f).items():
+                    if k in self._config:
+                        self._config[k] = v
+        except:
+            pass
     def get(self, key, default=None):
-        keys = key.split(".")
-        current = self.config
-        for k in keys:
-            if isinstance(current, dict) and k in current:
-                current = current[k]
-            else:
-                return default
-        return current
+        return self._config.get(key, default)
     def set(self, key, value):
-        keys = key.split(".")
-        current = self.config
-        for k in keys[:-1]:
-            if k not in current or not isinstance(current[k], dict):
-                current[k] = {}
-            current = current[k]
-        current[keys[-1]] = value
-        self._save_config()
-    def __getattr__(self, name):
-        if name in self.config:
-            return self.config[name]
-        raise AttributeError(f"'ConfigLoader' object has no attribute '{name}'")
-    def reload(self):
-        self.config = deepcopy(self.defaults)
-        self._load_config()
+        self._config[key] = value
+    def save(self, path):
+        with open(path, "w") as f:
+            json.dump(self._config, f, indent=2)
+    def all(self):
+        return self._config.copy()
