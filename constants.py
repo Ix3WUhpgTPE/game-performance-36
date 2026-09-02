@@ -1,43 +1,64 @@
-from typing import Final
+import logging
+from logging.handlers import RotatingFileHandler
+import os
+import sys
 
-# Game settings constants
-SCREEN_WIDTH: Final[int] = 800
-SCREEN_HEIGHT: Final[int] = 600
-FPS: Final[int] = 60
+LOG_NAME = "game-performance-36"
+LOG_FILE = "game.log"
+MAX_BYTES = 5 * 1024 * 1024
+BACKUP_COUNT = 3
 
-# Color constants
-BLACK: Final[tuple[int, int, int]] = (0, 0, 0)
-WHITE: Final[tuple[int, int, int]] = (255, 255, 255)
-RED: Final[tuple[int, int, int]] = (255, 0, 0)
-GREEN: Final[tuple[int, int, int]] = (0, 255, 0)
-BLUE: Final[tuple[int, int, int]] = (0, 0, 255)
+def create_rotating_logger(name=LOG_NAME, log_file=LOG_FILE, max_bytes=MAX_BYTES, backup_count=BACKUP_COUNT):
+    logger = logging.getLogger(name)
+    if logger.hasHandlers():
+        return logger
+    logger.setLevel(logging.DEBUG)
 
-# Game state constants
-MENU_STATE: Final[str] = 'menu'
-PLAYING_STATE: Final[str] = 'playing'
-PAUSED_STATE: Final[str] = 'paused'
-GAME_OVER_STATE: Final[str] = 'game_over'
+    # Ensure logs directory exists
+    logs_dir = "logs"
+    if not os.path.exists(logs_dir):
+        os.makedirs(logs_dir)
 
-# Maximum score constants
-MAX_SCORE: Final[int] = 100000
+    full_path = os.path.join(logs_dir, log_file)
 
-# Speed constants
-PLAYER_SPEED: Final[float] = 5.0
-ENEMY_SPEED: Final[float] = 3.0
+    # Setup rotating file handler
+    file_handler = RotatingFileHandler(
+        full_path,
+        maxBytes=max_bytes,
+        backupCount=backup_count,
+        encoding='utf-8'
+    )
 
-# Miscellaneous settings
-GRAVITY: Final[float] = 9.8
+    file_handler.setLevel(logging.DEBUG)
 
-def display_constants() -> None:
-    """
-    Display all constant values for debugging purposes.
-    """
-    constants = { 'SCREEN_WIDTH': SCREEN_WIDTH, 'SCREEN_HEIGHT': SCREEN_HEIGHT,
-                  'FPS': FPS, 'BLACK': BLACK, 'WHITE': WHITE,
-                  'RED': RED, 'GREEN': GREEN, 'BLUE': BLUE,
-                  'MENU_STATE': MENU_STATE, 'PLAYING_STATE': PLAYING_STATE,
-                  'PAUSED_STATE': PAUSED_STATE, 'GAME_OVER_STATE': GAME_OVER_STATE,
-                  'MAX_SCORE': MAX_SCORE, 'PLAYER_SPEED': PLAYER_SPEED,
-                  'ENEMY_SPEED': ENEMY_SPEED, 'GRAVITY': GRAVITY }
-    for name, value in constants.items():
-        print(f'{name}: {value}')
+    # Unusual formatter with game specific fields
+    file_formatter = logging.Formatter(
+        fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s [perf:%(perf)s]",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+
+    file_handler.setFormatter(file_formatter)
+
+    # Custom filter to ensure perf attribute
+    class PerformanceFilter(logging.Filter):
+        def filter(self, record):
+            if not hasattr(record, "perf"):
+                record.perf = "default"
+            return True
+
+    file_handler.addFilter(PerformanceFilter())
+
+    logger.addHandler(file_handler)
+
+    # Add console handler for immediate feedback in game
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_formatter = logging.Formatter("[%(levelname)s] %(message)s")
+    console_handler.setFormatter(console_formatter)
+
+    logger.addHandler(console_handler)
+
+    # Prevent propagation to root logger
+    logger.propagate = False
+
+    return logger
