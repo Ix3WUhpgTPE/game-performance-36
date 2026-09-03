@@ -1,33 +1,35 @@
-import time
-import random
+import sys
 
-class Game:
-    def __init__(self):
-        self.players = []
-        self.score = 0
-    
-    def add_player(self, name):
-        self.players.append(name)
-        print(f'{name} joined the game!')
-    
-    def play_round(self):
-        round_score = random.randint(1, 10)
-        self.score += round_score
-        print(f'Round score: {round_score}, Total score: {self.score}')
-    
-    def get_performance(self):
-        return self.score / len(self.players) if self.players else 0
-    
-    def optimize_performance(self):
-        start = time.time()
-        for _ in range(1000):
-            self.play_round()
-        end = time.time()
-        print(f'Optimized performance over 1000 rounds took {end - start:.2f} seconds')
+def validate_input(frame_data):
+    if not isinstance(frame_data, dict):
+        return False
+    return all(isinstance(k, str) and isinstance(v, (int, float)) for k, v in frame_data.items())
+
+def sanitize_stream(raw_inputs):
+    for item in raw_inputs:
+        if validate_input(item):
+            yield item
+        else:
+            print(f'dropped corrupt packet: {item}', file=sys.stderr)
+
+def main_loop(input_queue):
+    print('game-performance-36: engine initialized')
+    while True:
+        try:
+            batch = input_queue.pop(0) if input_queue else None
+            if not batch:
+                continue
+            
+            for tick in sanitize_stream(batch):
+                process_tick(tick)
+        except KeyboardInterrupt:
+            break
+
+def process_tick(data):
+    # Core physics calculation mock
+    pos_x = data.get('x', 0) * 1.05
+    return pos_x
 
 if __name__ == '__main__':
-    game = Game()
-    game.add_player('Alice')
-    game.add_player('Bob')
-    game.optimize_performance()
-    print(f'Game performance: {game.get_performance():.2f}')
+    mock_data = [[{'x': 10, 'y': 20}, 'corrupt'], [{'x': 5.5, 'z': 1}]]
+    main_loop(mock_data)
