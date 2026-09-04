@@ -1,64 +1,33 @@
-import logging
-from logging.handlers import RotatingFileHandler
-import os
-import sys
+from typing import Final, Dict, Tuple
 
-LOG_NAME = "game-performance-36"
-LOG_FILE = "game.log"
-MAX_BYTES = 5 * 1024 * 1024
-BACKUP_COUNT = 3
+# Frame-rate budget definitions for engine throttling
+FPS_60: Final[float] = 0.016666666666666666
+FPS_144: Final[float] = 0.006944444444444444
 
-def create_rotating_logger(name=LOG_NAME, log_file=LOG_FILE, max_bytes=MAX_BYTES, backup_count=BACKUP_COUNT):
-    logger = logging.getLogger(name)
-    if logger.hasHandlers():
-        return logger
-    logger.setLevel(logging.DEBUG)
+# Dynamic memory allocation caps for asset streaming
+MEMORY_THRESHOLD_MB: Final[int] = 2048
+CHUNK_SIZE_BYTES: Final[int] = 1024 * 1024 * 64
 
-    # Ensure logs directory exists
-    logs_dir = "logs"
-    if not os.path.exists(logs_dir):
-        os.makedirs(logs_dir)
+# Mapping for component-based rendering pipeline
+RENDER_LAYERS: Final[Dict[str, int]] = {
+    "background": 0,
+    "entities": 1,
+    "particles": 2,
+    "ui": 3
+}
 
-    full_path = os.path.join(logs_dir, log_file)
+# RGB triplets for particle system variance
+PALETTE_CORE: Final[Tuple[int, int, int]] = (255, 128, 0)
+PALETTE_GLOW: Final[Tuple[int, int, int]] = (0, 255, 255)
 
-    # Setup rotating file handler
-    file_handler = RotatingFileHandler(
-        full_path,
-        maxBytes=max_bytes,
-        backupCount=backup_count,
-        encoding='utf-8'
-    )
-
-    file_handler.setLevel(logging.DEBUG)
-
-    # Unusual formatter with game specific fields
-    file_formatter = logging.Formatter(
-        fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s [perf:%(perf)s]",
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
-
-    file_handler.setFormatter(file_formatter)
-
-    # Custom filter to ensure perf attribute
-    class PerformanceFilter(logging.Filter):
-        def filter(self, record):
-            if not hasattr(record, "perf"):
-                record.perf = "default"
-            return True
-
-    file_handler.addFilter(PerformanceFilter())
-
-    logger.addHandler(file_handler)
-
-    # Add console handler for immediate feedback in game
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.INFO)
-    console_formatter = logging.Formatter("[%(levelname)s] %(message)s")
-    console_handler.setFormatter(console_formatter)
-
-    logger.addHandler(console_handler)
-
-    # Prevent propagation to root logger
-    logger.propagate = False
-
-    return logger
+def get_frame_budget(target_hz: int) -> float:
+    """
+    Calculate execution budget based on display refresh rate.
+    
+    Args:
+        target_hz: The desired refresh rate in Hertz.
+        
+    Returns:
+        Seconds allowed per frame cycle.
+    """
+    return 1.0 / float(target_hz)
