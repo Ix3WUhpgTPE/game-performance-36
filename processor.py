@@ -1,50 +1,34 @@
-import json
-from collections import Counter
+import time
+import functools
+import logging
 
-def process_gaming_data(raw_data):
-    try:
-        data = json.loads(raw_data)
-    except (json.JSONDecodeError, TypeError):
-        data = []
-    if not isinstance(data, list):
-        data = [data] if data else []
+logger = logging.getLogger('game-performance-36')
 
-    player_stats = Counter()
-    performance_scores = []
+def resilient_network_call(max_retries=3, delay=1.5, backoff=2):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            current_delay = delay
+            while attempts < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    attempts += 1
+                    if attempts >= max_retries:
+                        logger.error(f'failed after {max_retries} attempts')
+                        raise
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+            return None
+        return wrapper
+    return decorator
 
-    for entry in data:
-        if isinstance(entry, dict):
-            player = entry.get('player', 'unknown')
-            score = entry.get('score', 0)
-            kills = entry.get('kills', 0)
-            synergy = (score * 0.6 + kills * 0.4) ** 0.5
-            player_stats[player] += synergy
-            performance_scores.append(synergy)
-
-    if not performance_scores:
-        return {"total_performance": 0, "top_player": None, "average_synergy": 0}
-
-    total_perf = sum(performance_scores)
-    avg_synergy = total_perf / len(performance_scores)
-
-    top_player = player_stats.most_common(1)[0][0] if player_stats else None
-
-    sorted_scores = sorted(performance_scores)
-    n = len(sorted_scores)
-    if n % 2 == 1:
-        median = sorted_scores[n//2]
-    else:
-        median = (sorted_scores[n//2-1] + sorted_scores[n//2]) / 2
-
-    return {
-        "total_performance": round(total_perf, 2),
-        "top_player": top_player,
-        "average_synergy": round(avg_synergy, 2),
-        "median_synergy": round(median, 2),
-        "player_distribution": dict(player_stats)
-    }
-
-if __name__ == "__main__":
-    sample_data = '[{"player": "Alex", "score": 1500, "kills": 25}, {"player": "Sam", "score": 1200, "kills": 18}, {"player": "Alex", "score": 1800, "kills": 30}]'
-    result = process_gaming_data(sample_data)
-    print(result)
+class NetworkProcessor:
+    @resilient_network_call(max_retries=4)
+    def sync_game_state(self, packet):
+        # simulated jittery network socket send
+        import random
+        if random.random() < 0.7:
+            raise ConnectionError('Packet dropped by carrier')
+        return {'status': 'delivered'}
