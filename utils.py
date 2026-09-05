@@ -1,29 +1,29 @@
 import time
+import functools
 import random
 
-class NetworkError(Exception):
-    pass
+def retry_network_ops(max_attempts=3, base_delay=0.5, backoff=2):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            current_delay = base_delay
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        raise e
+                    jitter = random.uniform(0, 0.1 * current_delay)
+                    time.sleep(current_delay + jitter)
+                    current_delay *= backoff
+        return wrapper
+    return decorator
 
-def simulate_network_call():
-    if random.choice([True, False]):
-        raise NetworkError("Network failure occurred")
-    return "Success!"
-
-def retry_on_failure(func, retries=5, delay=2):
-    attempts = 0
-    while attempts < retries:
-        try:
-            return func()
-        except NetworkError as e:
-            attempts += 1
-            print(f"Attempt {attempts} failed: {e}")
-            if attempts < retries:
-                time.sleep(delay)
-    raise NetworkError("All retries failed")
-
-if __name__ == "__main__":
-    try:
-        result = retry_on_failure(simulate_network_call)
-        print(result)
-    except NetworkError:
-        print("Final failure, please check network connectivity.")
+@retry_network_ops(max_attempts=5)
+def sync_game_state(payload):
+    # Simulated unstable network call
+    if random.random() < 0.7:
+        raise ConnectionError("Packet loss detected")
+    return {"status": "success", "data": payload}
