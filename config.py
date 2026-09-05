@@ -1,44 +1,40 @@
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-class ConfigLoader:
-    def __init__(self, defaults: Optional[Dict[str, Any]] = None, config_path: Optional[str] = None):
-        if defaults is None:
-            defaults = {"resolution": (1920, 1080), "fps_limit": 60, "fullscreen": True, "volume": 0.8, "graphics_quality": "high", "vsync": True}
-        self._config = defaults.copy()
-        self._load_from_env()
-        if config_path and os.path.isfile(config_path):
-            self._load_from_file(config_path)
-    def _load_from_env(self):
-        for key, current in list(self._config.items()):
-            env_key = "GAME_" + key.upper()
-            if env_key in os.environ:
-                val = os.environ[env_key]
-                if isinstance(current, bool):
-                    self._config[key] = val.lower() in ("true", "1", "yes")
-                elif isinstance(current, int):
-                    try: self._config[key] = int(val)
-                    except ValueError: pass
-                elif isinstance(current, float):
-                    try: self._config[key] = float(val)
-                    except ValueError: pass
-                else:
-                    self._config[key] = val
-    def _load_from_file(self, path):
+class GameConfig:
+    DEFAULT_SETTINGS = {
+        "frame_rate_limit": 144,
+        "resolution": [1920, 1080],
+        "graphics_preset": "ultra",
+        "enable_v_sync": True
+    }
+
+    def __init__(self, path: str = "config.json"):
+        self.path = path
+        self.data = self._load()
+
+    def _load(self) -> Dict[str, Any]:
+        if not os.path.exists(self.path):
+            self._save(self.DEFAULT_SETTINGS)
+            return self.DEFAULT_SETTINGS.copy()
+        
         try:
-            with open(path, "r") as f:
-                for k, v in json.load(f).items():
-                    if k in self._config:
-                        self._config[k] = v
-        except:
-            pass
-    def get(self, key, default=None):
-        return self._config.get(key, default)
-    def set(self, key, value):
-        self._config[key] = value
-    def save(self, path):
-        with open(path, "w") as f:
-            json.dump(self._config, f, indent=2)
-    def all(self):
-        return self._config.copy()
+            with open(self.path, "r") as f:
+                loaded = json.load(f)
+                return {**self.DEFAULT_SETTINGS, **loaded}
+        except (json.JSONDecodeError, IOError):
+            return self.DEFAULT_SETTINGS.copy()
+
+    def _save(self, data: Dict[str, Any]) -> None:
+        with open(self.path, "w") as f:
+            json.dump(data, f, indent=4)
+
+    def get(self, key: str, fallback: Any = None) -> Any:
+        return self.data.get(key, fallback)
+
+    def __getitem__(self, key: str) -> Any:
+        return self.data[key]
+
+    def __repr__(self) -> str:
+        return f"<GameConfig settings={list(self.data.keys())}>"
