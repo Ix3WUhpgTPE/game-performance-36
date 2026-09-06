@@ -1,44 +1,41 @@
 # game-performance-36
 
-game-performance-36 is a Python library that helps game developers monitor and optimize the performance of their titles. It tracks key metrics like frame times, CPU load, and memory consumption in real time, allowing for quick identification of optimization opportunities.
+`game-performance-36` is a lightweight Python toolkit designed to monitor and optimize system resources during gaming sessions. It provides real-time telemetry to help identify bottlenecks and maintain stable frame rates on Windows and Linux systems.
 
 ## Features
-- Precise frame time profiling with support for custom game loop phases
-- Real-time alerts for performance regressions during development
-- Built-in exporters for JSON, CSV, and visual reports
-- Seamless integration with Pygame and other Python game frameworks
+
+*   **Real-time Metrics:** Capture CPU, GPU, and RAM usage statistics with sub-second polling intervals.
+*   **Thermal Monitoring:** Track temperature fluctuations to identify thermal throttling before it impacts your framerate.
+*   **Logging & Analytics:** Export performance data to CSV format for post-session analysis and historical comparison.
+*   **Process Priority Management:** Automatically adjust process affinity and priority levels for active game windows to reduce stuttering.
 
 ## Installation
 
-```bash
-pip install game-performance-36
-```
-
-For the latest development version:
+Ensure you have Python 3.8+ installed. Clone the repository and install the required dependencies:
 
 ```bash
-git clone https://github.com/developer/game-performance-36.git
+git clone https://github.com/Developer/game-performance-36.git
 cd game-performance-36
-pip install -e .
+pip install -r requirements.txt
 ```
 
 ## Usage
 
-```python
-from game_performance_36 import PerformanceProfiler
+To start monitoring your system performance, run the main module with administrative privileges to allow access to hardware sensors:
 
-profiler = PerformanceProfiler()
+```bash
+sudo python main.py --log-file session_data.csv --interval 0.5
+```
 
-while running:
-    profiler.start_frame()
-    update_game()
-    render_game()
-    profiler.end_frame()
+You can customize the monitoring duration or toggle specific hardware sensors using the built-in CLI flags:
 
-    if profiler.should_report():
-        profiler.save_report("performance.json")
+```bash
+# Monitor for 60 seconds with GPU tracking enabled
+python main.py --duration 60 --enable-gpu
 ```
 
 ## License
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
