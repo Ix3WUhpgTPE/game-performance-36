@@ -4,13 +4,13 @@ from typing import Any, Dict
 
 class GameConfig:
     DEFAULT_SETTINGS = {
-        "frame_rate_limit": 144,
+        "frame_rate_cap": 144,
+        "vsync": True,
         "resolution": [1920, 1080],
-        "graphics_preset": "ultra",
-        "enable_v_sync": True
+        "debug_mode": False
     }
 
-    def __init__(self, path: str = "config.json"):
+    def __init__(self, path: str = "settings.json"):
         self.path = path
         self.data = self._load()
 
@@ -30,11 +30,11 @@ class GameConfig:
         with open(self.path, "w") as f:
             json.dump(data, f, indent=4)
 
-    def get(self, key: str, fallback: Any = None) -> Any:
-        return self.data.get(key, fallback)
+    def get(self, key: str, default: Any = None) -> Any:
+        return self.data.get(key, default)
 
     def __getitem__(self, key: str) -> Any:
         return self.data[key]
 
     def __repr__(self) -> str:
-        return f"<GameConfig settings={list(self.data.keys())}>"
+        return f"<GameConfig path={self.path} keys={list(self.data.keys())}>"
