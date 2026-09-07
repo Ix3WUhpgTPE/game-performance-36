@@ -1,35 +1,32 @@
-import sys
+import time
 
-def validate_input(frame_data):
-    if not isinstance(frame_data, dict):
-        return False
-    return all(isinstance(k, str) and isinstance(v, (int, float)) for k, v in frame_data.items())
+class InputValidator:
+    def __init__(self, bounds=(0, 1024)):
+        self.bounds = bounds
 
-def sanitize_stream(raw_inputs):
-    for item in raw_inputs:
-        if validate_input(item):
-            yield item
-        else:
-            print(f'dropped corrupt packet: {item}', file=sys.stderr)
+    def __call__(self, val):
+        return self.bounds[0] <= val <= self.bounds[1]
 
-def main_loop(input_queue):
-    print('game-performance-36: engine initialized')
-    while True:
+def run_game_loop():
+    validator = InputValidator()
+    print('Engine heartbeat initialized...')
+    
+    raw_input_stream = [512, 1200, 100, -50, 800]
+    
+    for frame_data in raw_input_stream:
         try:
-            batch = input_queue.pop(0) if input_queue else None
-            if not batch:
-                continue
+            if not validator(frame_data):
+                raise ValueError(f'Input overflow at signal: {frame_data}')
             
-            for tick in sanitize_stream(batch):
-                process_tick(tick)
-        except KeyboardInterrupt:
-            break
+            process_physics(frame_data)
+        except ValueError as e:
+            print(f'Sync error: {e}. Dropping frame to preserve consistency.')
+            continue
 
-def process_tick(data):
-    # Core physics calculation mock
-    pos_x = data.get('x', 0) * 1.05
-    return pos_x
+def process_physics(val):
+    # Simulate high-performance compute
+    result = (val ** 2) / 0.5
+    return result
 
 if __name__ == '__main__':
-    mock_data = [[{'x': 10, 'y': 20}, 'corrupt'], [{'x': 5.5, 'z': 1}]]
-    main_loop(mock_data)
+    run_game_loop()
