@@ -1,54 +1,39 @@
-from typing import List, Dict, Tuple, Deque
-import math
-from collections import deque
+from typing import List, Dict, Union, Any
+import time
 
-def get_performance_score(frame_deltas: List[float]) -> float:
-    """Compute a creative performance score for game frames.
-    Blends harmonic mean with logarithmic scaling for 60 FPS target.
+def calculate_frame_budget(refresh_rate: int, overhead_ms: float = 1.5) -> float:
     """
-    if not frame_deltas:
-        return 0.0
-    valid_deltas: List[float] = [d for d in frame_deltas if d > 0]
-    if not valid_deltas:
-        return 0.0
-    harmonic_mean: float = len(valid_deltas) / sum(1 / d for d in valid_deltas)
-    target_fps: float = 60.0
-    score: float = harmonic_mean / target_fps * math.log(harmonic_mean + 1)
-    return min(max(score, 0.0), 1.0)
+    calculates the precise milliseconds available per frame 
+    accounting for system overhead in high-perf gaming contexts.
+    """
+    total_frame_time: float = 1000.0 / refresh_rate
+    return max(0.0, total_frame_time - overhead_ms)
 
-def optimize_frame_budget(budget: float, tasks: Dict[str, float]) -> Dict[str, float]:
-    """Allocate frame time budget creatively among tasks.
-    Sorts by task name length as proxy for complexity.
+def sanitize_telemetry_data(payload: Dict[str, Any]) -> Dict[str, Union[str, float]]:
     """
-    if budget <= 0 or not tasks:
-        return {}
-    sorted_tasks: List[Tuple[str, float]] = sorted(tasks.items(), key=lambda x: len(x[0]), reverse=True)
-    allocation: Dict[str, float] = {}
-    remaining: float = budget
-    for name, time_needed in sorted_tasks:
-        if time_needed > remaining:
-            allocation[name] = remaining
-            remaining = 0.0
+    flattens nested telemetry objects to optimize serialization performance 
+    for real-time metric streaming.
+    """
+    sanitized: Dict[str, Union[str, float]] = {}
+    for key, value in payload.items():
+        if isinstance(value, dict):
+            for sub_key, sub_val in value.items():
+                sanitized[f"{key}_{sub_key}"] = float(sub_val) if isinstance(sub_val, (int, float)) else str(sub_val)
         else:
-            allocation[name] = time_needed
-            remaining -= time_needed
-        if remaining <= 0:
-            break
-    if remaining > 0 and allocation:
-        first_key: str = next(iter(allocation))
-        allocation[first_key] += remaining
-    return allocation
+            sanitized[key] = value
+    return sanitized
 
-def track_sliding_window_performance(deltas: Deque[float], max_size: int = 100) -> Tuple[float, float]:
-    """Track performance using sliding window of frame deltas.
-    Calculates average and chaos index with golden ratio.
+def throttled_execution(func: callable, interval: float) -> callable:
     """
-    if not deltas:
-        return 0.0, 0.0
-    avg_delta: float = sum(deltas) / len(deltas)
-    if len(deltas) < 2:
-        return avg_delta, 0.0
-    variance: float = sum((d - avg_delta) ** 2 for d in deltas) / len(deltas)
-    std_dev: float = math.sqrt(variance)
-    chaos_index: float = std_dev * ((1 + math.sqrt(5)) / 2)
-    return avg_delta, chaos_index
+    decorator applying a time-based execution gate to prevent 
+    performance spikes in event-driven loops.
+    """
+    last_run: float = 0.0
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        nonlocal last_run
+        now: float = time.time()
+        if now - last_run > interval:
+            last_run = now
+            return func(*args, **kwargs)
+        return None
+    return wrapper
