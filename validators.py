@@ -1,29 +1,31 @@
-import re
+import logging
+from typing import Any, Callable, TypeVar, Union
 
-def is_valid_username(username):
-    pattern = '^[a-zA-Z0-9_]{3,16}$'
-    return bool(re.match(pattern, username))
+T = TypeVar('T')
 
+class GamePerformanceError(Exception):
+    pass
 
-def is_valid_email(email):
-    pattern = '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return bool(re.match(pattern, email))
+def robust_execution(func: Callable[..., T]) -> Callable[..., Union[T, None]]:
+    def wrapper(*args: Any, **kwargs: Any) -> Union[T, None]:
+        try:
+            return func(*args, **kwargs)
+        except (ValueError, TypeError, ZeroDivisionError) as e:
+            logging.error(f'performance-fault detected in {func.__name__}: {e}')
+            return None
+        except Exception as e:
+            logging.critical(f'unrecoverable game state drift: {e}')
+            raise GamePerformanceError(f'fatal in {func.__name__}') from e
+    return wrapper
 
+def validate_frame_delta(delta: float) -> float:
+    if not isinstance(delta, (int, float)):
+        return 0.016
+    if delta <= 0 or delta > 1.0:
+        return 0.016
+    return float(delta)
 
-def is_valid_password(password):
-    if len(password) < 8:
-        return False
-    has_digit = any(char.isdigit() for char in password)
-    has_upper = any(char.isupper() for char in password)
-    has_lower = any(char.islower() for char in password)
-    return has_digit and has_upper and has_lower
-
-
-def validate_user_data(username, email, password):
-    if not is_valid_username(username):
-        return 'Invalid username'
-    if not is_valid_email(email):
-        return 'Invalid email'
-    if not is_valid_password(password):
-        return 'Invalid password'
-    return 'User data is valid'
+@robust_execution
+def process_render_cycle(frame_time: Any) -> float:
+    raw_delta = float(frame_time)
+    return validate_frame_delta(raw_delta)
