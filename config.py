@@ -1,30 +1,37 @@
-from typing import Dict, Any, Union
-from dataclasses import dataclass
+import json
+import os
+from typing import Any, Dict
 
-@dataclass(frozen=True)
-class EngineConfig:
-    """Immutable configuration for the gaming engine render pipeline."""
-    fps_cap: int
-    resolution: tuple[int, int]
-    vsync_enabled: bool
+class ConfigLoader:
+    def __init__(self, defaults: Dict[str, Any], path: str = 'settings.json'):
+        self.path = path
+        self.data = defaults
+        self._load_from_disk()
 
-def load_defaults() -> EngineConfig:
-    """Factory for default engine settings initialization."""
-    return EngineConfig(fps_cap=144, resolution=(1920, 1080), vsync_enabled=True)
+    def _load_from_disk(self) -> None:
+        if os.path.exists(self.path):
+            try:
+                with open(self.path, 'r') as f:
+                    disk_data = json.load(f)
+                    self.data.update(disk_data)
+            except (json.JSONDecodeError, IOError):
+                pass
 
-class ConfigRegistry:
-    """Dynamic registry for runtime performance tuning parameters."""
-    def __init__(self) -> None:
-        self._store: Dict[str, Union[int, float, str]] = {"load_factor": 0.8}
+    def __getattr__(self, name: str) -> Any:
+        return self.data.get(name)
 
-    def update_factor(self, key: str, value: Union[int, float]) -> None:
-        """Updates internal performance metrics with strict typing."""
-        self._store[key] = value
+    def __getitem__(self, key: str) -> Any:
+        return self.data[key]
 
-    def get_factor(self, key: str) -> Union[int, float, str, None]:
-        """Retrieves requested performance tuning parameter value."""
-        return self._store.get(key)
+    def save(self) -> None:
+        with open(self.path, 'w') as f:
+            json.dump(self.data, f, indent=4)
 
-def validate_scaling(factor: float) -> bool:
-    """Validation logic for resolution scaling parameters."""
-    return 0.1 <= factor <= 2.0
+def get_config() -> ConfigLoader:
+    defaults = {
+        'fps_cap': 60,
+        'vsync': True,
+        'resolution': [1920, 1080],
+        'audio_gain': 1.0
+    }
+    return ConfigLoader(defaults)
