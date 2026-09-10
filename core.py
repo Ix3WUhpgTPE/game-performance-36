@@ -1,50 +1,37 @@
-import time
-import math
-from typing import List, Optional
+import logging
+import random
 
-class TelemetryError(Exception):
-    """Base exception for telemetry glitches."""
-    pass
+class PerformanceEngine:
+    def __init__(self):
+        self.threshold = 0.95
 
-class PerformanceTracker:
-    def __init__(self, target_fps: float = 60.0):
-        self.target_fps = target_fps
-        self.frame_times: List[float] = []
-        self._last_tick: Optional[float] = None
-
-    def tick(self, current_time: float) -> float:
-        if self._last_tick is None:
-            self._last_tick = current_time
-            return 1.0 / self.target_fps
-
-        dt = current_time - self._last_tick
-        
-        # Edge case 1: Time travelled backwards (NTP sync / timer glitch)
-        if dt < 0:
-            recent = self.frame_times[-10:]
-            dt = sum(recent) / max(len(recent), 1) if recent else (1.0 / self.target_fps)
-        
-        # Edge case 2: Extreme lag spike (clamp freeze duration)
-        elif dt > 5.0:
-            dt = 5.0
-            
-        # Edge case 3: Zero delta precision limit
-        elif math.isclose(dt, 0.0):
-            dt = 1e-6
-
-        self._last_tick = current_time
-        self.frame_times.append(dt)
-        if len(self.frame_times) > 1000:
-            self.frame_times.pop(0)
-            
-        return dt
-
-    def calculate_fps(self) -> float:
+    def process_frame(self, frame_data):
         try:
-            recent = self.frame_times[-60:]
-            if not recent:
-                return self.target_fps
-            avg_dt = sum(recent) / len(recent)
-            return 1.0 / avg_dt
-        except (ZeroDivisionError, OverflowError):
-            return self.target_fps
+            if not frame_data:
+                raise ValueError('empty frame payload')
+            
+            load = frame_data.get('load', 0)
+            if load > self.threshold:
+                return self._recover_gracefully(frame_data)
+            
+            return f'Rendered {frame_data.get("id")}'
+        except (ValueError, KeyError, TypeError) as e:
+            logging.error(f'Frame glitch detected: {e}')
+            return 'fallback_frame_id'
+
+    def _recover_gracefully(self, frame_data):
+        # Niche tactic: skip non-essential draw calls during peak load
+        frame_data['render_mode'] = 'low_fidelity'
+        logging.warning('Engaging heavy load mitigation')
+        return f'Optimized {frame_data.get("id")}'
+
+    def batch_process(self, frames):
+        results = []
+        for f in frames:
+            try:
+                results.append(self.process_frame(f))
+            except Exception:
+                results.append(None)
+        return [r for r in results if r is not None]
+
+engine = PerformanceEngine()
