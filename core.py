@@ -1,52 +1,43 @@
-import math
-from typing import List, Dict, Union
+import sys
+from typing import Dict, List, Generator
 
-class PerformanceEvaluator:
+class FastStateTracker:
     """
-    Analyzes raw game frame timestamps to evaluate frame pacing and micro-stuttering.
-    Uses an entropy-based consistency metric rather than simple standard deviation.
+    Optimizes main game loop dirty-checking. Uses a bitfield integer 
+    to avoid dictionary creation/lookup overhead for up to 64 entities.
     """
-    def __init__(self, target_fps: int = 60):
-        self.target_frame_time = 1000.0 / target_fps
+    def __init__(self, size: int = 64):
+        if size > 64:
+            raise ValueError("Tracker limited to 64 elements for registers")
+        self._dirty_mask: int = 0
+        self._registry: Dict[str, int] = {}
+        self._reverse_registry: Dict[int, str] = {}
+        self._next_index: int = 0
 
-    def analyze_pacing(self, timestamps_ms: List[float]) -> Dict[str, Union[float, str]]:
-        if len(timestamps_ms) < 2:
-            return {"smoothness_index": 1.0, "status": "insufficient_data", "entropy": 0.0}
+    def register(self, entity_id: str) -> int:
+        if entity_id in self._registry:
+            return self._registry[entity_id]
+        if self._next_index >= 64:
+            raise IndexError("State tracker capacity exceeded")
+        idx = self._next_index
+        self._registry[entity_id] = idx
+        self._reverse_registry[idx] = entity_id
+        self._next_index += 1
+        return idx
 
-        frame_times = [
-            timestamps_ms[i] - timestamps_ms[i - 1]
-            for i in range(1, len(timestamps_ms))
-        ]
+    def mark_dirty(self, entity_idx: int) -> None:
+        self._dirty_mask |= (1 << entity_idx)
 
-        total_frames = len(frame_times)
-        avg_frame_time = sum(frame_times) / total_frames
+    def mark_clean(self, entity_idx: int) -> None:
+        self._dirty_mask &= ~(1 << entity_idx)
 
-        bin_width = 2.0
-        bins: Dict[int, int] = {}
-        for ft in frame_times:
-            deviation = ft - self.target_frame_time
-            bin_idx = int(deviation // bin_width)
-            bins[bin_idx] = bins.get(bin_idx, 0) + 1
+    def is_dirty(self, entity_idx: int) -> bool:
+        return bool((self._dirty_mask >> entity_idx) & 1)
 
-        entropy = 0.0
-        for count in bins.values():
-            probability = count / total_frames
-            entropy -= probability * math.log2(probability)
-
-        max_tolerable_entropy = 3.32
-        smoothness = max(0.0, 1.0 - (entropy / max_tolerable_entropy))
-
-        if smoothness > 0.85:
-            status = "fluid"
-        elif smoothness > 0.60:
-            status = "acceptable_micro_stutter"
-        else:
-            status = "unstable_pacing"
-
-        return {
-            "average_fps": round(1000.0 / avg_frame_time, 2) if avg_frame_time > 0 else 0.0,
-            "smoothness_index": round(smoothness, 4),
-            "entropy": round(entropy, 4),
-            "status": status,
-            "total_stutters": sum(1 for ft in frame_times if ft > self.target_frame_time * 1.5)
-        }
+    def flush_dirty_entities(self) -> Generator[str, None, None]:
+        mask = self._dirty_mask
+        while mask:
+            lowest_bit_idx = (mask & -mask).bit_length() - 1
+            yield self._reverse_registry[lowest_bit_idx]
+            mask &= mask - 1
+        self._dirty_mask = 0
