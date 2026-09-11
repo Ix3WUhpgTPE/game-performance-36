@@ -1,37 +1,52 @@
-import logging
-import random
+import math
+from typing import List, Dict, Union
 
-class PerformanceEngine:
-    def __init__(self):
-        self.threshold = 0.95
+class PerformanceEvaluator:
+    """
+    Analyzes raw game frame timestamps to evaluate frame pacing and micro-stuttering.
+    Uses an entropy-based consistency metric rather than simple standard deviation.
+    """
+    def __init__(self, target_fps: int = 60):
+        self.target_frame_time = 1000.0 / target_fps
 
-    def process_frame(self, frame_data):
-        try:
-            if not frame_data:
-                raise ValueError('empty frame payload')
-            
-            load = frame_data.get('load', 0)
-            if load > self.threshold:
-                return self._recover_gracefully(frame_data)
-            
-            return f'Rendered {frame_data.get("id")}'
-        except (ValueError, KeyError, TypeError) as e:
-            logging.error(f'Frame glitch detected: {e}')
-            return 'fallback_frame_id'
+    def analyze_pacing(self, timestamps_ms: List[float]) -> Dict[str, Union[float, str]]:
+        if len(timestamps_ms) < 2:
+            return {"smoothness_index": 1.0, "status": "insufficient_data", "entropy": 0.0}
 
-    def _recover_gracefully(self, frame_data):
-        # Niche tactic: skip non-essential draw calls during peak load
-        frame_data['render_mode'] = 'low_fidelity'
-        logging.warning('Engaging heavy load mitigation')
-        return f'Optimized {frame_data.get("id")}'
+        frame_times = [
+            timestamps_ms[i] - timestamps_ms[i - 1]
+            for i in range(1, len(timestamps_ms))
+        ]
 
-    def batch_process(self, frames):
-        results = []
-        for f in frames:
-            try:
-                results.append(self.process_frame(f))
-            except Exception:
-                results.append(None)
-        return [r for r in results if r is not None]
+        total_frames = len(frame_times)
+        avg_frame_time = sum(frame_times) / total_frames
 
-engine = PerformanceEngine()
+        bin_width = 2.0
+        bins: Dict[int, int] = {}
+        for ft in frame_times:
+            deviation = ft - self.target_frame_time
+            bin_idx = int(deviation // bin_width)
+            bins[bin_idx] = bins.get(bin_idx, 0) + 1
+
+        entropy = 0.0
+        for count in bins.values():
+            probability = count / total_frames
+            entropy -= probability * math.log2(probability)
+
+        max_tolerable_entropy = 3.32
+        smoothness = max(0.0, 1.0 - (entropy / max_tolerable_entropy))
+
+        if smoothness > 0.85:
+            status = "fluid"
+        elif smoothness > 0.60:
+            status = "acceptable_micro_stutter"
+        else:
+            status = "unstable_pacing"
+
+        return {
+            "average_fps": round(1000.0 / avg_frame_time, 2) if avg_frame_time > 0 else 0.0,
+            "smoothness_index": round(smoothness, 4),
+            "entropy": round(entropy, 4),
+            "status": status,
+            "total_stutters": sum(1 for ft in frame_times if ft > self.target_frame_time * 1.5)
+        }
