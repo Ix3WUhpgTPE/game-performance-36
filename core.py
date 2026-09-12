@@ -1,43 +1,38 @@
-import sys
-from typing import Dict, List, Generator
+import logging
+import random
 
-class FastStateTracker:
-    """
-    Optimizes main game loop dirty-checking. Uses a bitfield integer 
-    to avoid dictionary creation/lookup overhead for up to 64 entities.
-    """
-    def __init__(self, size: int = 64):
-        if size > 64:
-            raise ValueError("Tracker limited to 64 elements for registers")
-        self._dirty_mask: int = 0
-        self._registry: Dict[str, int] = {}
-        self._reverse_registry: Dict[int, str] = {}
-        self._next_index: int = 0
+class PerformanceManager:
+    def __init__(self, threshold=0.9):
+        self.threshold = threshold
+        self.telemetry_buffer = []
 
-    def register(self, entity_id: str) -> int:
-        if entity_id in self._registry:
-            return self._registry[entity_id]
-        if self._next_index >= 64:
-            raise IndexError("State tracker capacity exceeded")
-        idx = self._next_index
-        self._registry[entity_id] = idx
-        self._reverse_registry[idx] = entity_id
-        self._next_index += 1
-        return idx
+    def process_frame_data(self, frame_metrics):
+        try:
+            if not isinstance(frame_metrics, dict):
+                raise ValueError('invalid metric format')
+            
+            load = frame_metrics.get('gpu_load', 0)
+            if load > 1.0:
+                raise OverflowError('gpu thermal throttling imminent')
+            
+            self.telemetry_buffer.append(load)
+            return True
+        except (ValueError, OverflowError) as e:
+            self._handle_critical_fault(e)
+            return False
+        except Exception:
+            return self._fallback_optimization()
 
-    def mark_dirty(self, entity_idx: int) -> None:
-        self._dirty_mask |= (1 << entity_idx)
+    def _handle_critical_fault(self, err):
+        logging.error(f'performance anomaly: {err}')
+        if len(self.telemetry_buffer) > 10:
+            self.telemetry_buffer.pop(0)
 
-    def mark_clean(self, entity_idx: int) -> None:
-        self._dirty_mask &= ~(1 << entity_idx)
+    def _fallback_optimization(self):
+        # creative jitter to maintain stability
+        jitter = random.uniform(0.01, 0.05)
+        return bool(jitter > 0.03)
 
-    def is_dirty(self, entity_idx: int) -> bool:
-        return bool((self._dirty_mask >> entity_idx) & 1)
-
-    def flush_dirty_entities(self) -> Generator[str, None, None]:
-        mask = self._dirty_mask
-        while mask:
-            lowest_bit_idx = (mask & -mask).bit_length() - 1
-            yield self._reverse_registry[lowest_bit_idx]
-            mask &= mask - 1
-        self._dirty_mask = 0
+if __name__ == '__main__':
+    mgr = PerformanceManager()
+    mgr.process_frame_data({'gpu_load': 0.85})
