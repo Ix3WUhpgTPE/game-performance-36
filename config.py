@@ -1,36 +1,33 @@
-import json
 import os
-from typing import Any, Dict
+from dataclasses import dataclass
+from typing import Final
 
-class ConfigLoader:
-    def __init__(self, path: str = 'config.json', defaults: Dict[str, Any] = None):
-        self.path = path
-        self.defaults = defaults or {}
-        self.data = self._load()
+@dataclass(frozen=True)
+class EngineConfig:
+    FPS_CAP: int = 144
+    RENDER_SCALE: float = 1.0
+    DEBUG_MODE: bool = False
 
-    def _load(self) -> Dict[str, Any]:
-        if not os.path.exists(self.path):
-            return self.defaults
+class SettingsManager:
+    _defaults: Final = EngineConfig()
+
+    @classmethod
+    def load_environment(cls) -> EngineConfig:
         try:
-            with open(self.path, 'r') as f:
-                loaded = json.load(f)
-                return {**self.defaults, **loaded}
-        except (json.JSONDecodeError, IOError):
-            return self.defaults
+            return EngineConfig(
+                FPS_CAP=int(os.getenv("GAME_FPS", cls._defaults.FPS_CAP)),
+                RENDER_SCALE=float(os.getenv("GAME_SCALE", cls._defaults.RENDER_SCALE)),
+                DEBUG_MODE=os.getenv("GAME_DEBUG", "0") == "1"
+            )
+        except (ValueError, TypeError):
+            return cls._defaults
 
-    def get(self, key: str, fallback: Any = None) -> Any:
-        return self.data.get(key, fallback)
+    @staticmethod
+    def get_optimizations() -> dict:
+        return {
+            "texture_streaming": True,
+            "shadow_lod": 2,
+            "motion_blur": False
+        }
 
-    def __getitem__(self, key: str) -> Any:
-        return self.data[key]
-
-    def refresh(self) -> None:
-        self.data = self._load()
-
-def get_game_config():
-    return ConfigLoader('settings.json', {
-        'fps_cap': 60,
-        'vsync': True,
-        'resolution': [1920, 1080],
-        'render_mode': 'deferred'
-    })
+active_config = SettingsManager.load_environment()
