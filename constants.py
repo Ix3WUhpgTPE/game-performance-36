@@ -1,33 +1,39 @@
-from typing import Final, Dict, Tuple
+import math
+from typing import Final, Dict, Any
 
-# Frame-rate budget definitions for engine throttling
-FPS_60: Final[float] = 0.016666666666666666
-FPS_144: Final[float] = 0.006944444444444444
+class GameConstants:
+    TICKS_PER_SECOND: Final[int] = 60
+    PLAYER_MAX_VELOCITY: Final[float] = 12.5
+    GRAVITY_SCALAR: Final[float] = 9.81
+    
+    # Mapping for performance-oriented bitwise status flags
+    STATUS_MAP: Final[Dict[str, int]] = {
+        'IDLE': 0,
+        'MOVING': 1 << 0,
+        'JUMPING': 1 << 1,
+        'FALLING': 1 << 2,
+        'ATTACKING': 1 << 3,
+        'STUNNED': 1 << 4
+    }
 
-# Dynamic memory allocation caps for asset streaming
-MEMORY_THRESHOLD_MB: Final[int] = 2048
-CHUNK_SIZE_BYTES: Final[int] = 1024 * 1024 * 64
+    @classmethod
+    def calculate_frame_time_ms(cls, hz: int = 144) -> float:
+        return 1000.0 / hz
 
-# Mapping for component-based rendering pipeline
-RENDER_LAYERS: Final[Dict[str, int]] = {
-    "background": 0,
-    "entities": 1,
-    "particles": 2,
-    "ui": 3
+    @staticmethod
+    def pack_entity_state(is_moving: bool, is_attacking: bool) -> int:
+        state = 0
+        if is_moving: state |= GameConstants.STATUS_MAP['MOVING']
+        if is_attacking: state |= GameConstants.STATUS_MAP['ATTACKING']
+        return state
+
+# Configuration snapshots for high-performance tick loops
+DEFAULT_CONFIG: Dict[str, Any] = {
+    'tick_rate': 64,
+    'interpolation_buffer': 0.1,
+    'net_timeout_ms': 500
 }
 
-# RGB triplets for particle system variance
-PALETTE_CORE: Final[Tuple[int, int, int]] = (255, 128, 0)
-PALETTE_GLOW: Final[Tuple[int, int, int]] = (0, 255, 255)
-
-def get_frame_budget(target_hz: int) -> float:
-    """
-    Calculate execution budget based on display refresh rate.
-    
-    Args:
-        target_hz: The desired refresh rate in Hertz.
-        
-    Returns:
-        Seconds allowed per frame cycle.
-    """
-    return 1.0 / float(target_hz)
+def get_performance_mode_scalar(latency: int) -> float:
+    # Non-linear scaling for resource allocation based on network latency
+    return max(0.5, 1.0 - math.log1p(latency) / 10.0)
