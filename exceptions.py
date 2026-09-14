@@ -1,22 +1,26 @@
-from typing import Optional, Any
+class PerformanceThresholdError(Exception):
+    """Raised when frame timing exceeds latency budget."""
+    def __init__(self, latency, threshold):
+        self.message = f"Latency {latency}ms exceeded budget of {threshold}ms"
+        super().__init__(self.message)
 
-class PerformanceBaseError(Exception):
-    """Base exception for the game-performance-36 package."""
-    def __init__(self, message: str, context: Optional[dict[str, Any]] = None) -> None:
-        super().__init__(message)
-        self.context = context or {}
+class ResourceExhaustionError(Exception):
+    """Raised when heap or GPU memory hits critical levels."""
+    def __init__(self, resource, usage):
+        self.message = f"Critical failure: {resource} usage at {usage}%"
+        super().__init__(self.message)
 
-class FrameDropError(PerformanceBaseError):
-    """Raised when rendering frames fall below target threshold."""
-    def __init__(self, fps: float, target: float) -> None:
-        super().__init__(f"FPS dropped to {fps}, target was {target}", {"fps": fps, "target": target})
+class DependencyInjectionError(Exception):
+    """Custom error for malformed engine plugin bindings."""
+    pass
 
-class ResourceLeakError(PerformanceBaseError):
-    """Raised when asset memory usage exceeds limits."""
-    def __init__(self, resource_id: str, usage_mb: float) -> None:
-        super().__init__(f"Resource {resource_id} leaking at {usage_mb}MB", {"id": resource_id, "usage": usage_mb})
+def raise_if_lagging(frame_time, threshold=16.6):
+    if frame_time > threshold:
+        raise PerformanceThresholdError(frame_time, threshold)
 
-class BufferOverflowError(PerformanceBaseError):
-    """Raised when command buffer capacity is breached."""
-    def __init__(self, capacity: int) -> None:
-        super().__init__(f"Buffer limit of {capacity} entries exceeded", {"max": capacity})
+class EngineErrorHandler:
+    @staticmethod
+    def handle_critical(err):
+        # Log and initiate immediate state save
+        print(f"[CRITICAL] {err.__class__.__name__}: {err}")
+        return True
