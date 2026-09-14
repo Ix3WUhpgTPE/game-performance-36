@@ -1,36 +1,40 @@
-from typing import List, Union, Callable, Any
+import functools
 import time
+from typing import Callable, Any
 
-def frame_timer(func: Callable) -> Callable:
-    """Decorator to measure execution time of performance-critical functions."""
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        start_time = time.perf_counter()
-        result = func(*args, **kwargs)
-        end_time = time.perf_counter()
-        print(f"[PERF] {func.__name__} executed in {end_time - start_time:.6f}s")
-        return result
-    return wrapper
+def throttled_telemetry(interval: float = 0.5):
+    """Dynamic decorator for gaming event throughput management."""
+    def decorator(func: Callable):
+        last_called = [0.0]
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            now = time.monotonic()
+            if now - last_called[0] >= interval:
+                last_called[0] = now
+                return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
-def calculate_fps_average(frame_times: List[float]) -> float:
-    """Calculates average frames per second from a list of frame timings."""
-    if not frame_times:
-        return 0.0
-    return len(frame_times) / sum(frame_times)
+def unpack_game_state(state_blob: dict) -> dict:
+    """Recursive flattening of deep game state dictionaries."""
+    def flatten(d, parent_key=''):
+        items = []
+        for k, v in d.items():
+            new_key = f"{parent_key}.{k}" if parent_key else k
+            if isinstance(v, dict):
+                items.extend(flatten(v, new_key).items())
+            else:
+                items.append((new_key, v))
+        return dict(items)
+    return flatten(state_blob)
 
-def normalize_entity_coords(coords: Union[tuple, list]) -> tuple:
-    """Coerces spatial coordinates into a standard immutable tuple format."""
-    return tuple(float(c) for c in coords)
+class PerformanceFrame:
+    """Container for high-frequency engine performance metrics."""
+    __slots__ = ('fps', 'latency', 'memory')
+    def __init__(self, fps: float, latency: int, memory: int):
+        self.fps = fps
+        self.latency = latency
+        self.memory = memory
 
-class PerformanceBudget:
-    """Context manager for tracking frame budget overflow."""
-    def __init__(self, limit_ms: float = 16.67) -> None:
-        self.limit = limit_ms / 1000
-        self.start = 0.0
-
-    def __enter__(self) -> None:
-        self.start = time.perf_counter()
-
-    def __exit__(self, *args: Any) -> None:
-        elapsed = time.perf_counter() - self.start
-        if elapsed > self.limit:
-            print(f"[WARNING] Frame budget exceeded: {elapsed:.4f}s")
+    def __repr__(self):
+        return f"<Frame: {self.fps}fps @ {self.latency}ms>"
