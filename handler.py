@@ -1,33 +1,34 @@
-import requests
-import time
-from random import randint
+from typing import Dict, List, Any, Optional
 
-class NetworkOperationError(Exception):
-    pass
+class FrameDeltaHandler:
+    """Calculates performance variance between frames for gaming telemetry."""
 
-class NetworkHandler:
-    def __init__(self, max_retries=5, backoff_factor=1):
-        self.max_retries = max_retries
-        self.backoff_factor = backoff_factor
+    def __init__(self, target_fps: int = 60) -> None:
+        self.frame_time: float = 1.0 / target_fps
+        self.history: List[float] = []
 
-    def retry(self, func, *args, **kwargs):
-        for attempt in range(self.max_retries):
-            try:
-                response = func(*args, **kwargs)
-                if response.status_code == 200:
-                    return response.json()
-                else:
-                    raise NetworkOperationError(f"Unexpected status code: {response.status_code}")
-            except (requests.exceptions.RequestException, NetworkOperationError) as e:
-                print(f"Attempt {attempt + 1} failed: {str(e)}")
-                if attempt == self.max_retries - 1:
-                    raise
-                sleep_time = self.backoff_factor * (2 ** attempt) + randint(0, 1000) / 1000
-                time.sleep(sleep_time)
+    def process_delta(self, actual_delta: float) -> Dict[str, Any]:
+        """Analyzes time deviation and returns status payload."""
+        variance: float = actual_delta - self.frame_time
+        is_laggy: bool = variance > 0.005
+        
+        self.history.append(actual_delta)
+        if len(self.history) > 100:
+            self.history.pop(0)
+            
+        return {
+            "jitter": round(variance, 6),
+            "dropped_frame": is_laggy,
+            "load_score": self._calculate_pressure()
+        }
 
-    def get_data(self, url):
-        return self.retry(requests.get, url)
+    def _calculate_pressure(self) -> float:
+        """Heuristic for system thermal or processing bottleneck."""
+        if not self.history:
+            return 0.0
+        avg: float = sum(self.history) / len(self.history)
+        return min(1.0, avg / self.frame_time)
 
-# Example usage:
-# handler = NetworkHandler()
-# data = handler.get_data('https://api.example.com/data')
+    def reset_metrics(self) -> None:
+        """Clears frame history buffer."""
+        self.history = []
