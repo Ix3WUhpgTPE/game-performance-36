@@ -1,43 +1,30 @@
-from typing import Generator, Iterable, TypeVar
+import time
 
-T = TypeVar("T")
+class InputGuardian:
+    def __init__(self, schema):
+        self.schema = schema
 
-class FrameDeltaSmoother:
-    """Exponential moving average smoother for frame delta time processing.
-    
-    Uses bitwise right shift operator overloading to supply raw frame deltas
-    into the smoothing state pipeline.
-    """
-    def __init__(self, alpha: float = 0.15) -> None:
-        self.alpha: float = alpha
-        self.current_ema: float | None = None
+    def sanitize(self, data):
+        if not isinstance(data, dict): return None
+        return {k: v for k, v in data.items() if k in self.schema and isinstance(v, self.schema[k])}
 
-    def __rshift__(self, delta: float) -> float:
-        """Pipes a raw delta time into the smoother and returns the updated EMA.
-        
-        Args:
-            delta: Raw frame time in milliseconds.
+validator = InputGuardian({'fps': int, 'latency': float, 'gpu_temp': int})
+
+def process_game_state(raw_stream):
+    for frame in raw_stream:
+        try:
+            clean_data = validator.sanitize(frame)
+            if not clean_data or clean_data['fps'] < 0:
+                raise ValueError('malformed frame packet detected')
             
-        Returns:
-            The newly calculated exponential moving average.
-        """
-        if self.current_ema is None:
-            self.current_ema = delta
-        else:
-            self.current_ema = (self.alpha * delta) + ((1.0 - self.alpha) * self.current_ema)
-        return self.current_ema
+            render_engine_update(clean_data)
+        except (ValueError, KeyError, TypeError):
+            continue
 
-def process_frame_stream(raw_deltas: Iterable[float]) -> Generator[tuple[float, float], None, None]:
-    """Processes a stream of frame deltas into (smoothed_ms, estimated_fps) tuples.
-    
-    Args:
-        raw_deltas: An iterable yielding frame delta durations in milliseconds.
-        
-    Yields:
-        Tuples containing the smoothed frame delta and calculated FPS.
-    """
-    smoother = FrameDeltaSmoother()
-    for delta in raw_deltas:
-        smoothed_ms = delta >> smoother
-        fps = 1000.0 / smoothed_ms if smoothed_ms > 0 else 0.0
-        yield (round(smoothed_ms, 2), round(fps, 1))
+def render_engine_update(data):
+    # Simulate high-performance game loop logic
+    pass
+
+if __name__ == '__main__':
+    mock_input = [{'fps': 60, 'latency': 16.6, 'gpu_temp': 75}, {'fps': -1}]
+    process_game_state(mock_input)
