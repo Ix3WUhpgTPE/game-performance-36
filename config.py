@@ -1,33 +1,66 @@
 import os
-from dataclasses import dataclass
-from typing import Final
+from contextlib import contextmanager
+from typing import Any, Dict, get_type_hints
 
-@dataclass(frozen=True)
-class EngineConfig:
-    FPS_CAP: int = 144
+
+class GameConfig:
+    # Game performance default settings
+    TARGET_FPS: int = 144
+    ENABLE_V_SYNC: bool = False
+    GC_GENERATION_LIMIT: int = 3
     RENDER_SCALE: float = 1.0
-    DEBUG_MODE: bool = False
+    SHADOW_RESOLUTION: int = 1024
+    CACHE_SIZE_MB: int = 512
+    LOG_PERFORMANCE_METRICS: bool = True
 
-class SettingsManager:
-    _defaults: Final = EngineConfig()
+    def __init__(self, overrides: Dict[str, Any] = None):
+        self._custom = overrides or {}
+        self._temp_overrides = {}
 
-    @classmethod
-    def load_environment(cls) -> EngineConfig:
+    def _coerce(self, name: str, value: Any) -> Any:
+        hints = get_type_hints(self.__class__)
+        if name not in hints:
+            return value
+        expected_type = hints[name]
+        if isinstance(value, expected_type):
+            return value
+        if expected_type is bool:
+            return str(value).lower() in ("true", "1", "yes", "on")
         try:
-            return EngineConfig(
-                FPS_CAP=int(os.getenv("GAME_FPS", cls._defaults.FPS_CAP)),
-                RENDER_SCALE=float(os.getenv("GAME_SCALE", cls._defaults.RENDER_SCALE)),
-                DEBUG_MODE=os.getenv("GAME_DEBUG", "0") == "1"
-            )
+            return expected_type(value)
         except (ValueError, TypeError):
-            return cls._defaults
+            return getattr(self.__class__, name)
 
-    @staticmethod
-    def get_optimizations() -> dict:
-        return {
-            "texture_streaming": True,
-            "shadow_lod": 2,
-            "motion_blur": False
-        }
+    def __getattr__(self, name: str) -> Any:
+        if name.startswith("_"):
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            )
 
-active_config = SettingsManager.load_environment()
+        # Priority: Temp override > Environment > Custom Overrides > Class Defaults
+        if name in self._temp_overrides:
+            return self._coerce(name, self._temp_overrides[name])
+
+        env_val = os.environ.get(f"GAME_{name.upper()}")
+        if env_val is not None:
+            return self._coerce(name, env_val)
+
+        if name in self._custom:
+            return self._coerce(name, self._custom[name])
+
+        if hasattr(self.__class__, name):
+            return getattr(self.__class__, name)
+
+        raise AttributeError(
+            f"Config option '{name}' is not defined in defaults."
+        )
+
+    @contextmanager
+    def override(self, **kwargs):
+        """Temporary performance tuning context helper."""
+        old_overrides = dict(self._temp_overrides)
+        self._temp_overrides.update(kwargs)
+        try:
+            yield self
+        finally:
+            self._temp_overrides = old_overrides
