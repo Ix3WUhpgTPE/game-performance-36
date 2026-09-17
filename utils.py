@@ -1,40 +1,54 @@
-import functools
-import time
-from typing import Callable, Any
+import collections
+from typing import Generator, List, Tuple
 
-def throttled_telemetry(interval: float = 0.5):
-    """Dynamic decorator for gaming event throughput management."""
-    def decorator(func: Callable):
-        last_called = [0.0]
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            now = time.monotonic()
-            if now - last_called[0] >= interval:
-                last_called[0] = now
-                return func(*args, **kwargs)
-        return wrapper
-    return decorator
+class FramePacingTracker:
+    """
+    An unusual frame pacing tracker that calculates live jitter and predicts
+    the next frame's optimal sleep target to prevent screen tearing/stuttering.
+    """
+    def __init__(self, window_size: int = 60):
+        self.window_size = window_size
+        self.frame_times = collections.deque(maxlen=window_size)
 
-def unpack_game_state(state_blob: dict) -> dict:
-    """Recursive flattening of deep game state dictionaries."""
-    def flatten(d, parent_key=''):
-        items = []
-        for k, v in d.items():
-            new_key = f"{parent_key}.{k}" if parent_key else k
-            if isinstance(v, dict):
-                items.extend(flatten(v, new_key).items())
-            else:
-                items.append((new_key, v))
-        return dict(items)
-    return flatten(state_blob)
+    def record_and_smooth(self, actual_delta: float) -> Tuple[float, float]:
+        """
+        Records a frame delta (in seconds) and returns a tuple of:
+        (smoothed_delta, anomaly_score)
+        anomaly_score > 1.0 indicates a major stutter event (e.g. GC collection).
+        """
+        self.frame_times.append(actual_delta)
+        if len(self.frame_times) < 5:
+            return actual_delta, 0.0
 
-class PerformanceFrame:
-    """Container for high-frequency engine performance metrics."""
-    __slots__ = ('fps', 'latency', 'memory')
-    def __init__(self, fps: float, latency: int, memory: int):
-        self.fps = fps
-        self.latency = latency
-        self.memory = memory
+        # Unusual approach: weight frames by their proximity to the median
+        # which naturally dampens massive spike anomalies without losing reactivity
+        sorted_frames = sorted(self.frame_times)
+        median = sorted_frames[len(sorted_frames) // 2]
+        
+        total_weight = 0.0
+        weighted_sum = 0.0
+        
+        for ft in self.frame_times:
+            diff = abs(ft - median)
+            weight = 1.0 / (diff + 1e-6)
+            weighted_sum += ft * weight
+            total_weight += weight
+            
+        smoothed_delta = weighted_sum / total_weight
+        
+        # Calculate anomaly score using simple deviation ratio
+        deviation = abs(actual_delta - median)
+        mean_deviation = sum(abs(f - median) for f in self.frame_times) / len(self.frame_times)
+        anomaly_score = deviation / (mean_deviation + 1e-6)
+        
+        return smoothed_delta, anomaly_score
 
-    def __repr__(self):
-        return f"<Frame: {self.fps}fps @ {self.latency}ms>"
+def stream_telemetry_smoothing(raw_deltas: List[float]) -> Generator[Tuple[float, bool], None, None]:
+    """
+    Generates smoothed frame times and a boolean flag indicating a critical stutter.
+    """
+    tracker = FramePacingTracker()
+    for delta in raw_deltas:
+        smoothed, anomaly = tracker.record_and_smooth(delta)
+        is_stutter = anomaly > 2.5 and delta > 0.033
+        yield smoothed, is_stutter
