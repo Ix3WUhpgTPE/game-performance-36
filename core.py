@@ -1,38 +1,39 @@
-import logging
-import random
+import functools
+import time
 
-class PerformanceManager:
-    def __init__(self, threshold=0.9):
-        self.threshold = threshold
-        self.telemetry_buffer = []
+class PerformanceEngine:
+    def __init__(self):
+        self._memo = {}
+        self._tick_rate = 0.016
 
-    def process_frame_data(self, frame_metrics):
-        try:
-            if not isinstance(frame_metrics, dict):
-                raise ValueError('invalid metric format')
-            
-            load = frame_metrics.get('gpu_load', 0)
-            if load > 1.0:
-                raise OverflowError('gpu thermal throttling imminent')
-            
-            self.telemetry_buffer.append(load)
-            return True
-        except (ValueError, OverflowError) as e:
-            self._handle_critical_fault(e)
-            return False
-        except Exception:
-            return self._fallback_optimization()
+    def frame_limiter(self, func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            elapsed = time.perf_counter() - start
+            sleep_time = self._tick_rate - elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+            return result
+        return wrapper
 
-    def _handle_critical_fault(self, err):
-        logging.error(f'performance anomaly: {err}')
-        if len(self.telemetry_buffer) > 10:
-            self.telemetry_buffer.pop(0)
+    def spatial_hash(self, entities, cell_size=50):
+        grid = {}
+        for e in entities:
+            key = (int(e.x // cell_size), int(e.y // cell_size))
+            if key not in grid: grid[key] = []
+            grid[key].append(e)
+        return grid
 
-    def _fallback_optimization(self):
-        # creative jitter to maintain stability
-        jitter = random.uniform(0.01, 0.05)
-        return bool(jitter > 0.03)
+    def batch_update(self, processors):
+        return [p() for p in processors]
 
-if __name__ == '__main__':
-    mgr = PerformanceManager()
-    mgr.process_frame_data({'gpu_load': 0.85})
+class Entity:
+    __slots__ = ('x', 'y', 'id')
+    def __init__(self, x, y, id):
+        self.x, self.y, self.id = x, y, id
+
+def run_tick(engine, entities):
+    grid = engine.spatial_hash(entities)
+    return grid
