@@ -1,39 +1,31 @@
-import math
 from typing import Final, Dict, Any
 
-class GameConstants:
-    TICKS_PER_SECOND: Final[int] = 60
-    PLAYER_MAX_VELOCITY: Final[float] = 12.5
-    GRAVITY_SCALAR: Final[float] = 9.81
-    
-    # Mapping for performance-oriented bitwise status flags
-    STATUS_MAP: Final[Dict[str, int]] = {
-        'IDLE': 0,
-        'MOVING': 1 << 0,
-        'JUMPING': 1 << 1,
-        'FALLING': 1 << 2,
-        'ATTACKING': 1 << 3,
-        'STUNNED': 1 << 4
-    }
+# Performance thresholds for engine optimization
+# Measured in milliseconds per frame
+FRAME_TIME_BUDGET: Final[float] = 16.66
+LOW_LATENCY_THRESHOLD: Final[float] = 8.33
 
-    @classmethod
-    def calculate_frame_time_ms(cls, hz: int = 144) -> float:
-        return 1000.0 / hz
+# Graphics engine magic numbers for GPU buffer sizing
+BUFFER_SIZE_MULTIPLIER: Final[int] = 4
+MAX_DRAWCALLS_PER_BATCH: Final[int] = 1024
 
-    @staticmethod
-    def pack_entity_state(is_moving: bool, is_attacking: bool) -> int:
-        state = 0
-        if is_moving: state |= GameConstants.STATUS_MAP['MOVING']
-        if is_attacking: state |= GameConstants.STATUS_MAP['ATTACKING']
-        return state
-
-# Configuration snapshots for high-performance tick loops
-DEFAULT_CONFIG: Dict[str, Any] = {
-    'tick_rate': 64,
-    'interpolation_buffer': 0.1,
-    'net_timeout_ms': 500
+# Mapping for resource priority levels in the background loader
+# Higher integer value equates to aggressive caching
+PRIORITY_MAP: Final[Dict[str, int]] = {
+    "texture": 1,
+    "mesh": 2,
+    "audio": 3,
+    "shader": 5
 }
 
-def get_performance_mode_scalar(latency: int) -> float:
-    # Non-linear scaling for resource allocation based on network latency
-    return max(0.5, 1.0 - math.log1p(latency) / 10.0)
+# Default environment configuration for performance scaling
+DEFAULT_CONFIG: Final[Dict[str, Any]] = {
+    "vsync": True,
+    "anisotropy": 16,
+    "shadow_map_resolution": 2048,
+    "enable_occlusion_culling": True
+}
+
+def get_buffer_limit(factor: float = 1.0) -> int:
+    """Calculates adjusted buffer size based on load factor."""
+    return int(MAX_DRAWCALLS_PER_BATCH * factor * BUFFER_SIZE_MULTIPLIER)
