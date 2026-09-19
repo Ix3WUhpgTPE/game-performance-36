@@ -1,48 +1,38 @@
-import gc
-import time
+import functools
 import logging
 from typing import Callable, Any
 
 logger = logging.getLogger('game-performance-36')
 
-class PerformanceOptimizer:
-    def __init__(self, threshold: float = 0.8):
-        self.threshold = threshold
+class PerformanceLimitExceeded(Exception):
+    """Raised when metrics fall outside of acceptable frame budgets."""
+    pass
 
-    def run_cleanup(self) -> int:
-        collected = gc.collect()
-        logger.info(f'garbage collection cycle finished, collected {collected} objects')
-        return collected
-
-    def throttle_frame_rate(self, target_fps: int) -> None:
-        time.sleep(1.0 / target_fps)
-
-def memoize_heavy_calc(func: Callable) -> Callable:
-    cache = {}
-    def wrapper(*args: Any) -> Any:
-        if args not in cache:
-            cache[args] = func(*args)
-        return cache[args]
+def robust_execute(func: Callable):
+    """Wraps game engine tasks with defensive boundary checks."""
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            result = func(*args, **kwargs)
+            if result is None:
+                raise ValueError('Null return in critical path')
+            return result
+        except (ZeroDivisionError, TypeError, KeyError) as e:
+            logger.error(f'Metric calculation error in {func.__name__}: {e}')
+            return 0.0
+        except Exception as e:
+            logger.critical(f'Unexpected engine crash: {e}')
+            raise PerformanceLimitExceeded(f'Task {func.__name__} failed critical state')
     return wrapper
 
-def memory_pressure_watchdog(limit_mb: int) -> bool:
-    import psutil
-    process = psutil.Process()
-    usage = process.memory_info().rss / 1024 / 1024
-    return usage > limit_mb
+@robust_execute
+def calculate_frame_time(delta: float, target: float) -> float:
+    return target / delta
 
-def batch_process(data: list, size: int):
-    for i in range(0, len(data), size):
-        yield data[i:i + size]
-
-class ResourceRegistry:
-    _assets = {}
-
-    @classmethod
-    def register(cls, key: str, resource: Any):
-        cls._assets[key] = resource
-
-    @classmethod
-    def flush(cls):
-        cls._assets.clear()
-        gc.collect()
+def validate_resource_load(resource_map: dict, key: str) -> bool:
+    """Verifies asset existence without raising fatal lookup errors."""
+    try:
+        return resource_map[key] is not None
+    except (KeyError, TypeError):
+        logger.warning(f'Resource {key} missing, falling back to default')
+        return False
