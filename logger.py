@@ -1,32 +1,32 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+import sys
+from datetime import datetime
 
-class GamingPerformanceLogger:
-    def __init__(self, name="game_perf", log_file="game_metrics.log", max_bytes=5*1024*1024, backup_count=3):
+class PerformanceLogger:
+    def __init__(self, name: str = "game-perf-36"):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.DEBUG)
-        
+        self.formatter = logging.Formatter(
+            '%(asctime)s | %(levelname)s | %(message)s',
+            datefmt='%H:%M:%S'
+        )
+        self._setup_handlers()
+
+    def _setup_handlers(self):
         if not self.logger.handlers:
-            formatter = logging.Formatter(
-                "[%(asctime)s] [%(levelname)s] (FPS/RAM): %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S"
-            )
-            
-            console_handler = logging.StreamHandler()
-            console_handler.setLevel(logging.INFO)
-            console_handler.setFormatter(formatter)
-            
-            file_handler = RotatingFileHandler(
-                log_file, maxBytes=max_bytes, backupCount=backup_count
-            )
-            file_handler.setLevel(logging.DEBUG)
-            file_handler.setFormatter(formatter)
-            
-            self.logger.addHandler(console_handler)
-            self.logger.addHandler(file_handler)
+            stdout = logging.StreamHandler(sys.stdout)
+            stdout.setFormatter(self.formatter)
+            self.logger.addHandler(stdout)
 
-    def get_logger(self):
-        return self.logger
+    def log_frame_metric(self, tag: str, value: float):
+        timestamp = datetime.now().timestamp()
+        self.logger.info(f"[METRIC] {tag}: {value:.4f} @ {timestamp}")
 
-setup_logger = GamingPerformanceLogger().get_logger()
+    def warn_bottleneck(self, subsystem: str, latency: float):
+        if latency > 16.67:
+            self.logger.warning(f"[BOTTLE] {subsystem} spiking at {latency}ms")
+
+_instance = PerformanceLogger()
+
+def get_logger():
+    return _instance
