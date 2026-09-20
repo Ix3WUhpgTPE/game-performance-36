@@ -1,38 +1,49 @@
-import functools
-import logging
-from typing import Callable, Any
+import time
+from typing import Dict, List, Any
 
-logger = logging.getLogger('game-performance-36')
+class FrameMetrics:
+    def __init__(self) -> None:
+        self.timestamps: List[float] = []
 
-class PerformanceLimitExceeded(Exception):
-    """Raised when metrics fall outside of acceptable frame budgets."""
-    pass
+    def __lshift__(self, timestamp: float) -> "FrameMetrics":
+        """Overloaded operator to append timestamps via shift operator '<<'."""
+        self.timestamps.append(timestamp)
+        if len(self.timestamps) > 500:
+            self.timestamps.pop(0)
+        return self
 
-def robust_execute(func: Callable):
-    """Wraps game engine tasks with defensive boundary checks."""
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        try:
-            result = func(*args, **kwargs)
-            if result is None:
-                raise ValueError('Null return in critical path')
-            return result
-        except (ZeroDivisionError, TypeError, KeyError) as e:
-            logger.error(f'Metric calculation error in {func.__name__}: {e}')
-            return 0.0
-        except Exception as e:
-            logger.critical(f'Unexpected engine crash: {e}')
-            raise PerformanceLimitExceeded(f'Task {func.__name__} failed critical state')
-    return wrapper
+    @property
+    def report(self) -> Dict[str, float]:
+        if len(self.timestamps) < 2:
+            return {"fps": 0.0, "jitter_ms": 0.0}
+        
+        deltas = [
+            self.timestamps[i] - self.timestamps[i - 1]
+            for i in range(1, len(self.timestamps))
+        ]
+        avg_delta = sum(deltas) / len(deltas)
+        jitter = sum(abs(d - avg_delta) for d in deltas) / len(deltas)
+        
+        return {
+            "fps": 1.0 / avg_delta if avg_delta > 0 else 0.0,
+            "jitter_ms": jitter * 1000.0
+        }
 
-@robust_execute
-def calculate_frame_time(delta: float, target: float) -> float:
-    return target / delta
+class FrameGuard:
+    """Context manager that tracks execution times and reports budget anomalies."""
+    def __init__(self, metrics: FrameMetrics, limit_ms: float = 16.67):
+        self.metrics = metrics
+        self.limit = limit_ms / 1000.0
+        self.start: float = 0.0
 
-def validate_resource_load(resource_map: dict, key: str) -> bool:
-    """Verifies asset existence without raising fatal lookup errors."""
-    try:
-        return resource_map[key] is not None
-    except (KeyError, TypeError):
-        logger.warning(f'Resource {key} missing, falling back to default')
-        return False
+    def __enter__(self) -> "FrameGuard":
+        self.start = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        end = time.perf_counter()
+        self.metrics << end
+        elapsed = end - self.start
+        if elapsed > self.limit:
+            excess_ms = (elapsed - self.limit) * 1000.0
+            print(f"[METRIC ALERT] Frame budget exceeded by {excess_ms:.2f}ms")
