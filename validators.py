@@ -1,31 +1,37 @@
 import logging
-from typing import Any, Callable, TypeVar, Union
 
-T = TypeVar('T')
+class InputValidator:
+    """Sanity check for input packet health."""
+    def __init__(self, tolerance_level=0.05):
+        self.tolerance = tolerance_level
 
-class GamePerformanceError(Exception):
-    pass
-
-def robust_execution(func: Callable[..., T]) -> Callable[..., Union[T, None]]:
-    def wrapper(*args: Any, **kwargs: Any) -> Union[T, None]:
+    def sanitize_frame_data(self, data):
         try:
-            return func(*args, **kwargs)
-        except (ValueError, TypeError, ZeroDivisionError) as e:
-            logging.error(f'performance-fault detected in {func.__name__}: {e}')
+            if not isinstance(data, dict):
+                raise ValueError("Non-dict input received")
+            
+            required = {'frame_id', 'latency', 'delta'}
+            if not required.issubset(data.keys()):
+                raise KeyError(f"Missing keys in packet: {required - data.keys()}")
+            
+            if not (0 <= data['latency'] < 500):
+                logging.warning(f"High latency detected: {data['latency']}ms")
+                return None
+            
+            return {k: float(v) for k, v in data.items()}
+        except (TypeError, ValueError, KeyError) as e:
+            logging.error(f"Malformed packet rejected: {e}")
             return None
-        except Exception as e:
-            logging.critical(f'unrecoverable game state drift: {e}')
-            raise GamePerformanceError(f'fatal in {func.__name__}') from e
-    return wrapper
 
-def validate_frame_delta(delta: float) -> float:
-    if not isinstance(delta, (int, float)):
-        return 0.016
-    if delta <= 0 or delta > 1.0:
-        return 0.016
-    return float(delta)
+def validate_game_stream(stream):
+    validator = InputValidator()
+    for packet in stream:
+        clean = validator.sanitize_frame_data(packet)
+        if clean:
+            yield clean
 
-@robust_execution
-def process_render_cycle(frame_time: Any) -> float:
-    raw_delta = float(frame_time)
-    return validate_frame_delta(raw_delta)
+# Dynamic frame integrity check for performance loop
+if __name__ == "__main__":
+    test_stream = [{'frame_id': 1, 'latency': 12.5, 'delta': 0.016}, {'invalid': True}]
+    for valid_frame in validate_game_stream(test_stream):
+        print(f"Processing frame: {valid_frame['frame_id']}")
