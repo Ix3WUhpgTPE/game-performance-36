@@ -1,26 +1,30 @@
-class PerformanceThresholdError(Exception):
-    """Raised when frame timing exceeds latency budget."""
-    def __init__(self, latency, threshold):
-        self.message = f"Latency {latency}ms exceeded budget of {threshold}ms"
-        super().__init__(self.message)
+from typing import Optional, Any
 
-class ResourceExhaustionError(Exception):
-    """Raised when heap or GPU memory hits critical levels."""
-    def __init__(self, resource, usage):
-        self.message = f"Critical failure: {resource} usage at {usage}%"
-        super().__init__(self.message)
+class PerformanceBaseError(Exception):
+    """Base exception for all game-performance-36 issues."""
+    def __init__(self, message: str, context: Optional[dict[str, Any]] = None) -> None:
+        super().__init__(message)
+        self.context: dict[str, Any] = context or {}
 
-class DependencyInjectionError(Exception):
-    """Custom error for malformed engine plugin bindings."""
+class FrameDropError(PerformanceBaseError):
+    """Raised when frame rate falls below configured thresholds."""
     pass
 
-def raise_if_lagging(frame_time, threshold=16.6):
-    if frame_time > threshold:
-        raise PerformanceThresholdError(frame_time, threshold)
+class ResourceLeakError(PerformanceBaseError):
+    """Raised when memory or gpu usage exceeds safe limits."""
+    pass
 
-class EngineErrorHandler:
-    @staticmethod
-    def handle_critical(err):
-        # Log and initiate immediate state save
-        print(f"[CRITICAL] {err.__class__.__name__}: {err}")
-        return True
+class InitializationError(PerformanceBaseError):
+    """Raised when the engine fails to hook into the game process."""
+    pass
+
+def raise_if_critical(condition: bool, error_cls: type[PerformanceBaseError], message: str) -> None:
+    """Conditional performance exception trigger mechanism."""
+    if condition:
+        raise error_cls(message)
+
+if __name__ == '__main__':
+    try:
+        raise_if_critical(True, InitializationError, "Engine hook failed")
+    except PerformanceBaseError as e:
+        print(f"Caught performance anomaly: {e}")
