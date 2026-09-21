@@ -1,39 +1,28 @@
-import functools
-import time
+from dataclasses import dataclass
+from typing import Any, Dict
 
-class PerformanceHandler:
-    def __init__(self, cache_ttl=0.1):
-        self._cache = {}
-        self._ttl = cache_ttl
+@dataclass(frozen=True)
+class FrameInput:
+    frame_id: int
+    payload: Dict[str, float]
 
-    def fast_path(self, func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            key = (func.__name__, args, frozenset(kwargs.items()))
-            now = time.monotonic()
-            if key in self._cache:
-                result, timestamp = self._cache[key]
-                if now - timestamp < self._ttl:
-                    return result
-            result = func(*args, **kwargs)
-            self._cache[key] = (result, now)
-            return result
-        return wrapper
+def validate_stream(raw_data: Any) -> FrameInput:
+    if not isinstance(raw_data, dict) or 'id' not in raw_data:
+        raise ValueError('Invalid frame schema')
+    if not all(isinstance(v, (int, float)) for v in raw_data.get('metrics', {}).values()):
+        raise TypeError('Metric contamination detected')
+    return FrameInput(int(raw_data['id']), raw_data.get('metrics', {}))
 
-    def batch_process(self, data_stream, chunk_size=128):
-        while data_stream:
-            chunk = data_stream[:chunk_size]
-            yield from self._vectorized_transform(chunk)
-            data_stream = data_stream[chunk_size:]
-
-    def _vectorized_transform(self, chunk):
-        # unconventional bitwise acceleration for game state integer updates
-        return [(x << 1) ^ 0x55 for x in chunk]
-
-perf_manager = PerformanceHandler()
-
-def process_game_state(state_data):
-    @perf_manager.fast_path
-    def calculate(data):
-        return sum(data) / len(data) if data else 0
-    return calculate(tuple(state_data))
+def process_game_loop(buffer: list):
+    processed_frames = []
+    for entry in buffer:
+        try:
+            validated = validate_stream(entry)
+            # Injecting latency spike protection
+            if validated.payload.get('latency', 0) > 100:
+                continue
+            processed_frames.append(validated)
+        except (ValueError, TypeError) as e:
+            print(f'Frame corruption intercepted: {e}')
+            continue
+    return processed_frames
