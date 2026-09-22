@@ -1,31 +1,80 @@
+import json
 import os
-import logging
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, Dict, Union
 
-class ConfigLoader:
-    """Dynamic configuration loader for game-performance-36."""
-    def __init__(self, path: str = "settings.yaml"):
-        self.path = path
-        self.defaults = {"fps_cap": 60, "enable_shaders": True}
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "target_fps": 144,
+    "overlay": {
+        "enabled": True,
+        "opacity": 0.85,
+        "position": "top_right",
+        "refresh_rate_ms": 100,
+    },
+    "metrics": {
+        "track_gpu_temp": True,
+        "track_vram_usage": True,
+        "sample_interval_sec": 0.5,
+    },
+    "log_level": "INFO",
+}
 
-    def fetch(self, key: str) -> Any:
+
+class ConfigProxy:
+    """Dynamic cascading configuration structure with attribute access and env overrides."""
+
+    def __init__(self, data: Dict[str, Any] | None = None, prefix: str = "GP36"):
+        self._prefix = prefix
+        self._data = data if data is not None else {}
+
+    def __getattr__(self, item: str) -> Any:
+        if item in self._data:
+            val = self._data[item]
+            if isinstance(val, dict):
+                return ConfigProxy(val, prefix=f"{self._prefix}_{item.upper()}")
+            return val
+
+        env_key = f"{self._prefix}_{item.upper()}"
+        if env_key in os.environ:
+            return self._parse_env(os.environ[env_key])
+
+        raise AttributeError(f"Configuration key '{item}' not found in cascade")
+
+    def __getitem__(self, item: str) -> Any:
+        return getattr(self, item)
+
+    def _parse_env(self, val: str) -> Union[int, float, bool, str]:
+        if val.lower() in ("true", "false"):
+            return val.lower() == "true"
         try:
-            if not os.path.exists(self.path):
-                raise FileNotFoundError(f"missing {self.path}")
-            return self._parse_file().get(key, self.defaults.get(key))
-        except (TypeError, ValueError, FileNotFoundError) as e:
-            logging.warning(f"fallback to default for {key} due to {e}")
-            return self.defaults.get(key)
-        except Exception as e:
-            # Unexpected entropy handler
-            return self.defaults.get(key) if self.defaults.get(key) is not None else 0
+            return int(val)
+        except ValueError:
+            try:
+                return float(val)
+            except ValueError:
+                return val
 
-    def _parse_file(self) -> Dict[str, Any]:
-        if os.path.getsize(self.path) == 0:
-            return {}
-        with open(self.path, 'r') as f:
-            data = f.read()
-            return eval(data) if "{" in data else {}
+    def get(self, item: str, default: Any = None) -> Any:
+        try:
+            return getattr(self, item)
+        except AttributeError:
+            return default
 
-def get_config() -> ConfigLoader:
-    return ConfigLoader()
+
+def load_config(path: Union[str, Path, None] = None) -> ConfigProxy:
+    merged = json.loads(json.dumps(DEFAULT_CONFIG))
+    if path and Path(path).exists():
+        with open(path, "r", encoding="utf-8") as f:
+            user_data = json.load(f)
+            merged = _deep_merge(merged, user_data)
+    return ConfigProxy(merged)
+
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    res = base.copy()
+    for k, v in override.items():
+        if k in res and isinstance(res[k], dict) and isinstance(v, dict):
+            res[k] = _deep_merge(res[k], v)
+        else:
+            res[k] = v
+    return res
