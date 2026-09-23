@@ -1,49 +1,32 @@
 import time
-from typing import Dict, List, Any
+import functools
+from typing import Dict, Any, Callable
 
-class FrameMetrics:
-    def __init__(self) -> None:
-        self.timestamps: List[float] = []
+def frame_throttle(ms_delay: int):
+    def decorator(func: Callable):
+        last_call = [0.0]
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            now = time.perf_counter()
+            if (now - last_call[0]) * 1000 >= ms_delay:
+                last_call[0] = now
+                return func(*args, **kwargs)
+            return None
+        return wrapper
+    return decorator
 
-    def __lshift__(self, timestamp: float) -> "FrameMetrics":
-        """Overloaded operator to append timestamps via shift operator '<<'."""
-        self.timestamps.append(timestamp)
-        if len(self.timestamps) > 500:
-            self.timestamps.pop(0)
-        return self
+class DataNormalization:
+    @staticmethod
+    def sanitize_metrics(data: Dict[str, Any]) -> Dict[str, float]:
+        return {k: float(max(0, v)) for k, v in data.items() if isinstance(v, (int, float))}
 
-    @property
-    def report(self) -> Dict[str, float]:
-        if len(self.timestamps) < 2:
-            return {"fps": 0.0, "jitter_ms": 0.0}
-        
-        deltas = [
-            self.timestamps[i] - self.timestamps[i - 1]
-            for i in range(1, len(self.timestamps))
-        ]
-        avg_delta = sum(deltas) / len(deltas)
-        jitter = sum(abs(d - avg_delta) for d in deltas) / len(deltas)
-        
-        return {
-            "fps": 1.0 / avg_delta if avg_delta > 0 else 0.0,
-            "jitter_ms": jitter * 1000.0
-        }
+def unpack_game_state(state_payload: bytes) -> Dict[str, Any]:
+    try:
+        parts = state_payload.decode('utf-8').split('|')
+        return {parts[i]: float(parts[i+1]) for i in range(0, len(parts), 2)}
+    except (ValueError, IndexError):
+        return {}
 
-class FrameGuard:
-    """Context manager that tracks execution times and reports budget anomalies."""
-    def __init__(self, metrics: FrameMetrics, limit_ms: float = 16.67):
-        self.metrics = metrics
-        self.limit = limit_ms / 1000.0
-        self.start: float = 0.0
-
-    def __enter__(self) -> "FrameGuard":
-        self.start = time.perf_counter()
-        return self
-
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        end = time.perf_counter()
-        self.metrics << end
-        elapsed = end - self.start
-        if elapsed > self.limit:
-            excess_ms = (elapsed - self.limit) * 1000.0
-            print(f"[METRIC ALERT] Frame budget exceeded by {excess_ms:.2f}ms")
+@frame_throttle(16)
+def log_frame_delta(delta: float):
+    return f"Tick Delta: {delta:.4f}ms"
