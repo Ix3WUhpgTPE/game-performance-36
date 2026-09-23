@@ -1,32 +1,26 @@
 import time
+import random
 import functools
-from typing import Dict, Any, Callable
+from typing import Callable, Any
 
-def frame_throttle(ms_delay: int):
+def retry_operation(retries: int = 3, backoff: float = 0.5):
     def decorator(func: Callable):
-        last_call = [0.0]
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            now = time.perf_counter()
-            if (now - last_call[0]) * 1000 >= ms_delay:
-                last_call[0] = now
-                return func(*args, **kwargs)
-            return None
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            last_ex = None
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_ex = e
+                    sleep_time = backoff * (2 ** attempt) + (random.random() * 0.1)
+                    time.sleep(sleep_time)
+            raise last_ex
         return wrapper
     return decorator
 
-class DataNormalization:
-    @staticmethod
-    def sanitize_metrics(data: Dict[str, Any]) -> Dict[str, float]:
-        return {k: float(max(0, v)) for k, v in data.items() if isinstance(v, (int, float))}
-
-def unpack_game_state(state_payload: bytes) -> Dict[str, Any]:
-    try:
-        parts = state_payload.decode('utf-8').split('|')
-        return {parts[i]: float(parts[i+1]) for i in range(0, len(parts), 2)}
-    except (ValueError, IndexError):
-        return {}
-
-@frame_throttle(16)
-def log_frame_delta(delta: float):
-    return f"Tick Delta: {delta:.4f}ms"
+def sync_network_call(func: Callable):
+    @retry_operation(retries=5, backoff=1.0)
+    def executed_call(*args: Any, **kwargs: Any) -> Any:
+        return func(*args, **kwargs)
+    return executed_call
