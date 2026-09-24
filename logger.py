@@ -1,32 +1,34 @@
-import logging
-import sys
-from datetime import datetime
+import time
+import collections
+import functools
 
 class PerformanceLogger:
-    def __init__(self, name: str = "game-perf-36"):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
-        self.formatter = logging.Formatter(
-            '%(asctime)s | %(levelname)s | %(message)s',
-            datefmt='%H:%M:%S'
-        )
-        self._setup_handlers()
+    _telemetry = collections.defaultdict(list)
+    _thresholds = {'render': 16.6, 'physics': 8.3}
 
-    def _setup_handlers(self):
-        if not self.logger.handlers:
-            stdout = logging.StreamHandler(sys.stdout)
-            stdout.setFormatter(self.formatter)
-            self.logger.addHandler(stdout)
+    @classmethod
+    def profile(cls, segment):
+        def decorator(func):
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                start = time.perf_counter()
+                result = func(*args, **kwargs)
+                duration = (time.perf_counter() - start) * 1000
+                cls._telemetry[segment].append(duration)
+                if duration > cls._thresholds.get(segment, 50):
+                    cls._flush_warning(segment, duration)
+                return result
+            return wrapper
+        return decorator
 
-    def log_frame_metric(self, tag: str, value: float):
-        timestamp = datetime.now().timestamp()
-        self.logger.info(f"[METRIC] {tag}: {value:.4f} @ {timestamp}")
+    @staticmethod
+    def _flush_warning(segment, ms):
+        # Niche console output for gaming frame-budget tracking
+        print(f'[!] PERFORMANCE SPIKE in {segment}: {ms:.2f}ms')
 
-    def warn_bottleneck(self, subsystem: str, latency: float):
-        if latency > 16.67:
-            self.logger.warning(f"[BOTTLE] {subsystem} spiking at {latency}ms")
+    @classmethod
+    def get_avg(cls, segment):
+        data = cls._telemetry.get(segment, [])
+        return sum(data) / len(data) if data else 0
 
-_instance = PerformanceLogger()
-
-def get_logger():
-    return _instance
+logger = PerformanceLogger()
