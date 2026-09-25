@@ -1,54 +1,41 @@
-import collections
-from typing import Generator, List, Tuple
+import functools
+import time
+import math
 
-class FramePacingTracker:
-    """
-    An unusual frame pacing tracker that calculates live jitter and predicts
-    the next frame's optimal sleep target to prevent screen tearing/stuttering.
-    """
-    def __init__(self, window_size: int = 60):
-        self.window_size = window_size
-        self.frame_times = collections.deque(maxlen=window_size)
+def frame_delta_throttler(target_fps=60):
+    interval = 1.0 / target_fps
+    last_time = [time.perf_counter()]
 
-    def record_and_smooth(self, actual_delta: float) -> Tuple[float, float]:
-        """
-        Records a frame delta (in seconds) and returns a tuple of:
-        (smoothed_delta, anomaly_score)
-        anomaly_score > 1.0 indicates a major stutter event (e.g. GC collection).
-        """
-        self.frame_times.append(actual_delta)
-        if len(self.frame_times) < 5:
-            return actual_delta, 0.0
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            current = time.perf_counter()
+            delta = current - last_time[0]
+            if delta < interval:
+                time.sleep(interval - delta)
+            result = func(*args, **kwargs)
+            last_time[0] = time.perf_counter()
+            return result
+        return wrapper
+    return decorator
 
-        # Unusual approach: weight frames by their proximity to the median
-        # which naturally dampens massive spike anomalies without losing reactivity
-        sorted_frames = sorted(self.frame_times)
-        median = sorted_frames[len(sorted_frames) // 2]
-        
-        total_weight = 0.0
-        weighted_sum = 0.0
-        
-        for ft in self.frame_times:
-            diff = abs(ft - median)
-            weight = 1.0 / (diff + 1e-6)
-            weighted_sum += ft * weight
-            total_weight += weight
-            
-        smoothed_delta = weighted_sum / total_weight
-        
-        # Calculate anomaly score using simple deviation ratio
-        deviation = abs(actual_delta - median)
-        mean_deviation = sum(abs(f - median) for f in self.frame_times) / len(self.frame_times)
-        anomaly_score = deviation / (mean_deviation + 1e-6)
-        
-        return smoothed_delta, anomaly_score
+def lerp_interpolate(start, end, alpha):
+    return start + (end - start) * max(0.0, min(1.0, alpha))
 
-def stream_telemetry_smoothing(raw_deltas: List[float]) -> Generator[Tuple[float, bool], None, None]:
-    """
-    Generates smoothed frame times and a boolean flag indicating a critical stutter.
-    """
-    tracker = FramePacingTracker()
-    for delta in raw_deltas:
-        smoothed, anomaly = tracker.record_and_smooth(delta)
-        is_stutter = anomaly > 2.5 and delta > 0.033
-        yield smoothed, is_stutter
+class DataStreamOptimizer:
+    def __init__(self, buffer_size=1024):
+        self.buffer = []
+        self.max_size = buffer_size
+
+    def push_metric(self, value):
+        self.buffer.append(value)
+        if len(self.buffer) > self.max_size:
+            self.buffer.pop(0)
+
+    def get_moving_average(self):
+        if not self.buffer:
+            return 0.0
+        return sum(self.buffer) / len(self.buffer)
+
+def bitwise_pack_coords(x, y, z):
+    return (int(x) & 0x7FF) << 22 | (int(y) & 0x7FF) << 11 | (int(z) & 0x7FF)
