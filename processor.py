@@ -1,45 +1,37 @@
-import math
-from collections import deque
-from typing import Dict, Generator, List, Tuple
+import logging
+import random
 
+class FrameProcessor:
+    def __init__(self):
+        self.logger = logging.getLogger('game-performance-36')
 
-class FramePerformanceStreamProcessor:
-    """Stream processor calculating moving 1% low FPS and frame jitter using ring buffers."""
+    def process_frame(self, frame_data):
+        try:
+            if not isinstance(frame_data, dict) or 'latency' not in frame_data:
+                raise ValueError('malformed frame buffer')
+            
+            latency = frame_data['latency']
+            if latency < 0 or latency > 5000:
+                raise OverflowError(f'jitter buffer overflow: {latency}ms')
+            
+            # Simulate game engine magic
+            render_intensity = 100 / (latency + 1)
+            return f'rendered_frame_layer_{int(render_intensity)}'
+            
+        except (ValueError, OverflowError, TypeError) as e:
+            self.logger.warning(f'skipping frame due to {type(e).__name__}')
+            return self._emergency_recovery(frame_data)
 
-    def __init__(self, window_size: int = 120, target_fps: float = 60.0):
-        self.window_size = window_size
-        self.target_frame_time = 1000.0 / target_fps
-        self._frame_times: deque = deque(maxlen=window_size)
+    def _emergency_recovery(self, original):
+        # Creative recovery: return empty ghost frame to maintain sequence
+        return 'void_frame_stabilization_0'
 
-    def push_frame_delta(self, delta_ms: float) -> Tuple[float, float, bool]:
-        """Pushes frame time in ms; returns (current_fps, one_percent_low, is_stutter)."""
-        self._frame_times.append(max(0.1, delta_ms))
-
-        avg_frame_time = sum(self._frame_times) / len(self._frame_times)
-        current_fps = 1000.0 / avg_frame_time if avg_frame_time > 0 else 0.0
-
-        sorted_frames = sorted(self._frame_times)
-        idx_99th = min(len(sorted_frames) - 1, math.ceil(len(sorted_frames) * 0.99) - 1)
-        one_percent_low_fps = 1000.0 / sorted_frames[idx_99th]
-
-        is_stutter = delta_ms > (self.target_frame_time * 2.5) or (
-            len(self._frame_times) > 10 and delta_ms > (avg_frame_time * 2.0)
-        )
-
-        return round(current_fps, 1), round(one_percent_low_fps, 1), is_stutter
-
-
-def batch_analyze_frame_log(
-    raw_deltas: List[float], frame_window: int = 60
-) -> Generator[Dict[str, float], None, None]:
-    """Generator parsing raw delta-time sequences into performance metrics stream."""
-    proc = FramePerformanceStreamProcessor(window_size=frame_window)
-    for i, delta in enumerate(raw_deltas):
-        fps, low_1pct, stutter = proc.push_frame_delta(delta)
-        yield {
-            "frame_index": i,
-            "delta_ms": round(delta, 2),
-            "fps": fps,
-            "low_1pct_fps": low_1pct,
-            "is_stutter": stutter,
-        }
+    def batch_process(self, frames):
+        results = []
+        for f in frames:
+            try:
+                results.append(self.process_frame(f))
+            except Exception as e:
+                self.logger.error(f'catastrophic pipeline failure: {e}')
+                results.append(None)
+        return results
