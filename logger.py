@@ -1,34 +1,30 @@
-import time
-import collections
+import logging
+import sys
 import functools
 
 class PerformanceLogger:
-    _telemetry = collections.defaultdict(list)
-    _thresholds = {'render': 16.6, 'physics': 8.3}
+    def __init__(self, name='game-perf'):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter('%(asctime)s - [%(levelname)s] - %(message)s')
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
 
-    @classmethod
-    def profile(cls, segment):
-        def decorator(func):
-            @functools.wraps(func)
-            def wrapper(*args, **kwargs):
-                start = time.perf_counter()
-                result = func(*args, **kwargs)
-                duration = (time.perf_counter() - start) * 1000
-                cls._telemetry[segment].append(duration)
-                if duration > cls._thresholds.get(segment, 50):
-                    cls._flush_warning(segment, duration)
-                return result
-            return wrapper
-        return decorator
+    def safe_execute(self, func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except (MemoryError, RuntimeError) as e:
+                self.logger.critical(f'Critical system failure in {func.__name__}: {e}')
+                raise
+            except Exception as e:
+                self.logger.error(f'Unexpected jitter in {func.__name__}: {type(e).__name__} -> {e}')
+                return None
+        return wrapper
 
-    @staticmethod
-    def _flush_warning(segment, ms):
-        # Niche console output for gaming frame-budget tracking
-        print(f'[!] PERFORMANCE SPIKE in {segment}: {ms:.2f}ms')
+perf_logger = PerformanceLogger()
 
-    @classmethod
-    def get_avg(cls, segment):
-        data = cls._telemetry.get(segment, [])
-        return sum(data) / len(data) if data else 0
-
-logger = PerformanceLogger()
+def log_game_event(func):
+    return perf_logger.safe_execute(func)
