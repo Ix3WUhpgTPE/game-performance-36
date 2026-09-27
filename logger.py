@@ -1,30 +1,36 @@
 import logging
+from logging.handlers import RotatingFileHandler
 import sys
-import functools
+from pathlib import Path
 
-class PerformanceLogger:
-    def __init__(self, name='game-perf'):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
-        handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter('%(asctime)s - [%(levelname)s] - %(message)s')
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+def setup_game_logger(name: str = 'perf_tracker', log_dir: str = 'logs') -> logging.Logger:
+    path = Path(log_dir)
+    path.mkdir(exist_ok=True)
+    
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    
+    formatter = logging.Formatter(
+        '[%(asctime)s] | %(levelname)s | %(name)s | %(message)s',
+        datefmt='%H:%M:%S'
+    )
 
-    def safe_execute(self, func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except (MemoryError, RuntimeError) as e:
-                self.logger.critical(f'Critical system failure in {func.__name__}: {e}')
-                raise
-            except Exception as e:
-                self.logger.error(f'Unexpected jitter in {func.__name__}: {type(e).__name__} -> {e}')
-                return None
-        return wrapper
+    # Console output for real-time monitoring
+    console = logging.StreamHandler(sys.stdout)
+    console.setFormatter(formatter)
+    logger.addHandler(console)
 
-perf_logger = PerformanceLogger()
+    # File rotation for performance history
+    file_path = path / f'{name}.log'
+    file_handler = RotatingFileHandler(
+        file_path, 
+        maxBytes=1024 * 1024 * 5, 
+        backupCount=3
+    )
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    
+    return logger
 
-def log_game_event(func):
-    return perf_logger.safe_execute(func)
+# Quick access instance for game engine performance profiling
+engine_logger = setup_game_logger('game-performance-36')
