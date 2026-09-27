@@ -1,31 +1,31 @@
-from typing import Final, Dict, Any
+from enum import Enum, unique
+from typing import Final
 
-# Performance thresholds for engine optimization
-# Measured in milliseconds per frame
-FRAME_TIME_BUDGET: Final[float] = 16.66
-LOW_LATENCY_THRESHOLD: Final[float] = 8.33
+@unique
+class PerformanceMetric(Enum):
+    FRAME_TIME = "ms"
+    GPU_TEMP = "celsius"
+    VRAM_USAGE = "mb"
+    CPU_LOAD = "percent"
 
-# Graphics engine magic numbers for GPU buffer sizing
-BUFFER_SIZE_MULTIPLIER: Final[int] = 4
-MAX_DRAWCALLS_PER_BATCH: Final[int] = 1024
-
-# Mapping for resource priority levels in the background loader
-# Higher integer value equates to aggressive caching
-PRIORITY_MAP: Final[Dict[str, int]] = {
-    "texture": 1,
-    "mesh": 2,
-    "audio": 3,
-    "shader": 5
+DEFAULT_THRESHOLDS: Final[dict[PerformanceMetric, float]] = {
+    PerformanceMetric.FRAME_TIME: 16.6,
+    PerformanceMetric.GPU_TEMP: 85.0,
+    PerformanceMetric.VRAM_USAGE: 8192.0,
+    PerformanceMetric.CPU_LOAD: 90.0,
 }
 
-# Default environment configuration for performance scaling
-DEFAULT_CONFIG: Final[Dict[str, Any]] = {
-    "vsync": True,
-    "anisotropy": 16,
-    "shadow_map_resolution": 2048,
-    "enable_occlusion_culling": True
-}
+CACHE_TTL_SECONDS: Final[int] = 300
+MAX_RETRY_ATTEMPTS: Final[int] = 3
 
-def get_buffer_limit(factor: float = 1.0) -> int:
-    """Calculates adjusted buffer size based on load factor."""
-    return int(MAX_DRAWCALLS_PER_BATCH * factor * BUFFER_SIZE_MULTIPLIER)
+LOG_FORMAT: Final[str] = "%(asctime)s | %(levelname)s | %(message)s"
+VERSION: Final[str] = "0.3.6-stable"
+
+class EngineState(Enum):
+    IDLE = 0
+    INITIALIZING = 1
+    BENCHMARKING = 2
+    ERROR = -1
+
+TARGET_FPS: Final[int] = 144
+BUFFER_SIZE: Final[int] = 1024 * 64
