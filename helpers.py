@@ -1,26 +1,35 @@
 import time
-import random
 import functools
-from typing import Callable, Any
+import logging
 
-def retry_operation(retries: int = 3, backoff: float = 0.5):
-    def decorator(func: Callable):
+logger = logging.getLogger('game-performance-36')
+
+def retry_network(max_attempts=3, delay=1.0, backoff=2.0):
+    def decorator(func):
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_ex = None
-            for attempt in range(retries):
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            current_delay = delay
+            while attempts < max_attempts:
                 try:
                     return func(*args, **kwargs)
-                except Exception as e:
-                    last_ex = e
-                    sleep_time = backoff * (2 ** attempt) + (random.random() * 0.1)
-                    time.sleep(sleep_time)
-            raise last_ex
+                except (ConnectionError, TimeoutError) as e:
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        logger.error(f'Network failure after {attempts} attempts')
+                        raise e
+                    logger.warning(f'Network retry {attempts}/{max_attempts} in {current_delay}s')
+                    time.sleep(current_delay)
+                    current_delay *= backoff
         return wrapper
     return decorator
 
-def sync_network_call(func: Callable):
-    @retry_operation(retries=5, backoff=1.0)
-    def executed_call(*args: Any, **kwargs: Any) -> Any:
-        return func(*args, **kwargs)
-    return executed_call
+class AsyncNetworkBurst:
+    def __init__(self, capacity=5):
+        self.tokens = capacity
+    
+    def consume(self):
+        if self.tokens > 0:
+            self.tokens -= 1
+            return True
+        return False
