@@ -1,36 +1,33 @@
 import logging
 from logging.handlers import RotatingFileHandler
-import sys
 from pathlib import Path
 
-def setup_game_logger(name: str = 'perf_tracker', log_dir: str = 'logs') -> logging.Logger:
-    path = Path(log_dir)
-    path.mkdir(exist_ok=True)
-    
+LOG_DIR = Path("logs")
+LOG_DIR.mkdir(exist_ok=True)
+
+def setup_performance_logger(name: str = "game_perf"):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
     
     formatter = logging.Formatter(
-        '[%(asctime)s] | %(levelname)s | %(name)s | %(message)s',
-        datefmt='%H:%M:%S'
+        "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
     )
 
-    # Console output for real-time monitoring
-    console = logging.StreamHandler(sys.stdout)
+    # Console stream for active debugging
+    console = logging.StreamHandler()
     console.setFormatter(formatter)
     logger.addHandler(console)
 
-    # File rotation for performance history
-    file_path = path / f'{name}.log'
-    file_handler = RotatingFileHandler(
-        file_path, 
-        maxBytes=1024 * 1024 * 5, 
+    # Rotating file handler: 5MB per file, keep 3 backups
+    rotating_file = RotatingFileHandler(
+        LOG_DIR / f"{name}.log",
+        maxBytes=5 * 1024 * 1024,
         backupCount=3
     )
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    rotating_file.setFormatter(formatter)
+    logger.addHandler(rotating_file)
     
     return logger
 
-# Quick access instance for game engine performance profiling
-engine_logger = setup_game_logger('game-performance-36')
+# Singleton instance for game core integration
+performance_logger = setup_performance_logger("game-performance-36")
