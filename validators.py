@@ -1,37 +1,36 @@
-import logging
+import re
 
-class InputValidator:
-    """Sanity check for input packet health."""
-    def __init__(self, tolerance_level=0.05):
-        self.tolerance = tolerance_level
+class ValidatorRegistry:
+    def __init__(self):
+        self._rules = {}
 
-    def sanitize_frame_data(self, data):
-        try:
-            if not isinstance(data, dict):
-                raise ValueError("Non-dict input received")
-            
-            required = {'frame_id', 'latency', 'delta'}
-            if not required.issubset(data.keys()):
-                raise KeyError(f"Missing keys in packet: {required - data.keys()}")
-            
-            if not (0 <= data['latency'] < 500):
-                logging.warning(f"High latency detected: {data['latency']}ms")
-                return None
-            
-            return {k: float(v) for k, v in data.items()}
-        except (TypeError, ValueError, KeyError) as e:
-            logging.error(f"Malformed packet rejected: {e}")
-            return None
+    def register(self, key, pattern):
+        self._rules[key] = re.compile(pattern)
 
-def validate_game_stream(stream):
-    validator = InputValidator()
-    for packet in stream:
-        clean = validator.sanitize_frame_data(packet)
-        if clean:
-            yield clean
+    def validate(self, key, value):
+        if key not in self._rules:
+            return False
+        return bool(self._rules[key].fullmatch(str(value)))
 
-# Dynamic frame integrity check for performance loop
-if __name__ == "__main__":
-    test_stream = [{'frame_id': 1, 'latency': 12.5, 'delta': 0.016}, {'invalid': True}]
-    for valid_frame in validate_game_stream(test_stream):
-        print(f"Processing frame: {valid_frame['frame_id']}")
+def validate_game_payload(payload: dict) -> bool:
+    """
+    Quick and dirty validation logic for game state packets.
+    """
+    validator = ValidatorRegistry()
+    validator.register('session_id', r'[a-fA-F0-9]{32}')
+    validator.register('player_name', r'[a-zA-Z0-9_]{3,16}')
+    validator.register('latency', r'\d{1,4}')
+
+    try:
+        checks = [
+            validator.validate('session_id', payload.get('sid')),
+            validator.validate('player_name', payload.get('user')),
+            int(payload.get('latency', 999)) < 500
+        ]
+        return all(checks)
+    except (TypeError, ValueError):
+        return False
+
+if __name__ == '__main__':
+    sample = {'sid': 'a' * 32, 'user': 'dev_player', 'latency': '45'}
+    print(f'Payload valid: {validate_game_payload(sample)}')
