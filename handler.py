@@ -1,34 +1,37 @@
-import time
-import random
-from functools import wraps
+from collections import deque
+from typing import Deque, Generator, Optional, Tuple
 
-def jitter_retry(max_retries=3, backoff=0.5):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < max_retries:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    attempts += 1
-                    if attempts >= max_retries:
-                        raise e
-                    delay = (backoff * (2 ** attempts)) + (random.uniform(0, 0.1))
-                    time.sleep(delay)
-        return wrapper
-    decorator.retry_meta = {'max': max_retries, 'policy': 'exponential-jitter'}
-    return decorator
+class FrameSpikeHandler:
+    """A highly reactive handler to detect frame-rate micro-stutters during gameplay.
 
-@jitter_retry(max_retries=5)
-def execute_network_call(payload):
-    if random.random() < 0.7:
-        raise ConnectionError("packet loss in game lobby")
-    return {"status": "success", "data": payload}
+    Utilizes a co-routine generator structure to ingest frame times dynamically
+    and output performance anomalies when render spikes surpass dynamic thresholds.
+    """
 
-if __name__ == "__main__":
-    try:
-        result = execute_network_call({"match_id": 42})
-        print(f"Sync success: {result}")
-    except Exception as err:
-        print(f"Critical failure after retries: {err}")
+    def __init__(self, window_size: int = 60, spike_threshold_factor: float = 2.5) -> None:
+        self.window_size: int = window_size
+        self.threshold_factor: float = spike_threshold_factor
+        self.history: Deque[float] = deque(maxlen=window_size)
+
+    def pipeline(self) -> Generator[Optional[Tuple[float, float]], float, None]:
+        """A coroutine-based pipeline consuming raw frame times (ms).
+
+        Yields a tuple of (actual_frame_time, threshold) if a spike (anomaly) is detected,
+        otherwise yields None.
+        """
+        frame_time: Optional[float] = yield None
+
+        while True:
+            if frame_time is None:
+                frame_time = yield None
+                continue
+
+            anomaly: Optional[Tuple[float, float]] = None
+            if len(self.history) >= 10:
+                average: float = sum(self.history) / len(self.history)
+                dynamic_limit: float = average * self.threshold_factor
+                if frame_time > dynamic_limit:
+                    anomaly = (frame_time, dynamic_limit)
+
+            self.history.append(frame_time)
+            frame_time = yield anomaly
