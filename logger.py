@@ -1,33 +1,32 @@
+import time
+import functools
+import random
 import logging
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
 
-LOG_DIR = Path("logs")
-LOG_DIR.mkdir(exist_ok=True)
+logger = logging.getLogger('game-performance-36')
 
-def setup_performance_logger(name: str = "game_perf"):
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-    
-    formatter = logging.Formatter(
-        "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
-    )
+def with_retry(max_attempts=3, backoff=0.5):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        logger.error(f'Critical network failure after {attempts} attempts: {e}')
+                        raise
+                    sleep_time = backoff * (2 ** (attempts - 1)) + random.uniform(0, 0.1)
+                    logger.warning(f'Retrying {func.__name__} in {sleep_time:.2f}s...')
+                    time.sleep(sleep_time)
+        return wrapper
+    return decorator
 
-    # Console stream for active debugging
-    console = logging.StreamHandler()
-    console.setFormatter(formatter)
-    logger.addHandler(console)
-
-    # Rotating file handler: 5MB per file, keep 3 backups
-    rotating_file = RotatingFileHandler(
-        LOG_DIR / f"{name}.log",
-        maxBytes=5 * 1024 * 1024,
-        backupCount=3
-    )
-    rotating_file.setFormatter(formatter)
-    logger.addHandler(rotating_file)
-    
-    return logger
-
-# Singleton instance for game core integration
-performance_logger = setup_performance_logger("game-performance-36")
+@with_retry(max_attempts=4)
+def fetch_server_metrics(url):
+    # Simulate network instability for performance tracking
+    if random.random() < 0.7:
+        raise ConnectionError('Packet loss detected')
+    return {'ping': 'low', 'status': 'optimized'}
