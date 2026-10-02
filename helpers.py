@@ -1,35 +1,37 @@
 import time
-import functools
-import logging
+from typing import Generator, Iterator, Callable, Any
 
-logger = logging.getLogger('game-performance-36')
+def fps_estimator(alpha: float = 0.15) -> Generator[float, float, None]:
+    """
+    Stateful FPS estimator using a generator coroutine.
+    Yields the smoothed FPS value when sent the frame delta time (dt).
+    """
+    dt = yield 0.0
+    smoothed_fps = 1.0 / (dt if dt > 0 else 0.016)
+    while True:
+        dt = yield smoothed_fps
+        if dt > 0:
+            instant_fps = 1.0 / dt
+            smoothed_fps = (alpha * instant_fps) + ((1.0 - alpha) * smoothed_fps)
 
-def retry_network(max_attempts=3, delay=1.0, backoff=2.0):
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            current_delay = delay
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
-                    attempts += 1
-                    if attempts >= max_attempts:
-                        logger.error(f'Network failure after {attempts} attempts')
-                        raise e
-                    logger.warning(f'Network retry {attempts}/{max_attempts} in {current_delay}s')
-                    time.sleep(current_delay)
-                    current_delay *= backoff
-        return wrapper
-    return decorator
+class BudgetTracker:
+    """
+    A context manager tracking execution budget for performance-critical frames.
+    Returns a dictionary to dynamically check or alter budget parameters mid-frame.
+    """
+    def __init__(self, target_fps: float = 60.0):
+        self.limit = 1.0 / target_fps
+        self.start = 0.0
 
-class AsyncNetworkBurst:
-    def __init__(self, capacity=5):
-        self.tokens = capacity
-    
-    def consume(self):
-        if self.tokens > 0:
-            self.tokens -= 1
-            return True
+    def __enter__(self) -> dict[str, float]:
+        self.start = time.perf_counter()
+        self.info = {"limit": self.limit, "elapsed": 0.0, "over_budget": 0.0}
+        return self.info
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
+        elapsed = time.perf_counter() - self.start
+        self.info["elapsed"] = elapsed
+        self.info["over_budget"] = max(0.0, elapsed - self.info["limit"])
         return False
+
+def load_balancer(tasks: list[Callable[[], Any]], max
