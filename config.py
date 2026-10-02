@@ -1,80 +1,39 @@
 import json
 import os
-from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any, Dict
 
-DEFAULT_CONFIG: Dict[str, Any] = {
-    "target_fps": 144,
-    "overlay": {
-        "enabled": True,
-        "opacity": 0.85,
-        "position": "top_right",
-        "refresh_rate_ms": 100,
-    },
-    "metrics": {
-        "track_gpu_temp": True,
-        "track_vram_usage": True,
-        "sample_interval_sec": 0.5,
-    },
-    "log_level": "INFO",
-}
+class GameConfig:
+    DEFAULT_SETTINGS = {
+        "resolution": [1920, 1080],
+        "vsync": True,
+        "max_fps": 144,
+        "texture_quality": "ultra"
+    }
 
+    def __init__(self, filepath: str = "settings.json"):
+        self.filepath = filepath
+        self.settings = self._load_or_create()
 
-class ConfigProxy:
-    """Dynamic cascading configuration structure with attribute access and env overrides."""
+    def _load_or_create(self) -> Dict[str, Any]:
+        if not os.path.exists(self.filepath):
+            with open(self.filepath, "w") as f:
+                json.dump(self.DEFAULT_SETTINGS, f, indent=4)
+            return self.DEFAULT_SETTINGS.copy()
+        
+        with open(self.filepath, "r") as f:
+            data = json.load(f)
+            return {**self.DEFAULT_SETTINGS, **data}
 
-    def __init__(self, data: Dict[str, Any] | None = None, prefix: str = "GP36"):
-        self._prefix = prefix
-        self._data = data if data is not None else {}
+    def get(self, key: str, fallback: Any = None) -> Any:
+        return self.settings.get(key, fallback)
 
-    def __getattr__(self, item: str) -> Any:
-        if item in self._data:
-            val = self._data[item]
-            if isinstance(val, dict):
-                return ConfigProxy(val, prefix=f"{self._prefix}_{item.upper()}")
-            return val
-
-        env_key = f"{self._prefix}_{item.upper()}"
-        if env_key in os.environ:
-            return self._parse_env(os.environ[env_key])
-
-        raise AttributeError(f"Configuration key '{item}' not found in cascade")
+    def set(self, key: str, value: Any) -> None:
+        self.settings[key] = value
+        with open(self.filepath, "w") as f:
+            json.dump(self.settings, f, indent=4)
 
     def __getitem__(self, item: str) -> Any:
-        return getattr(self, item)
+        return self.settings[item]
 
-    def _parse_env(self, val: str) -> Union[int, float, bool, str]:
-        if val.lower() in ("true", "false"):
-            return val.lower() == "true"
-        try:
-            return int(val)
-        except ValueError:
-            try:
-                return float(val)
-            except ValueError:
-                return val
-
-    def get(self, item: str, default: Any = None) -> Any:
-        try:
-            return getattr(self, item)
-        except AttributeError:
-            return default
-
-
-def load_config(path: Union[str, Path, None] = None) -> ConfigProxy:
-    merged = json.loads(json.dumps(DEFAULT_CONFIG))
-    if path and Path(path).exists():
-        with open(path, "r", encoding="utf-8") as f:
-            user_data = json.load(f)
-            merged = _deep_merge(merged, user_data)
-    return ConfigProxy(merged)
-
-
-def _deep_merge(base: dict, override: dict) -> dict:
-    res = base.copy()
-    for k, v in override.items():
-        if k in res and isinstance(res[k], dict) and isinstance(v, dict):
-            res[k] = _deep_merge(res[k], v)
-        else:
-            res[k] = v
-    return res
+    def __repr__(self) -> str:
+        return f"GameConfig({self.settings})"
