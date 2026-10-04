@@ -1,32 +1,38 @@
-import time
+import sys
 import functools
-import random
-import logging
+import traceback
 
-logger = logging.getLogger('game-performance-36')
-
-def with_retry(max_attempts=3, backoff=0.5):
+def performance_trap(fallback_val=None):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    attempts += 1
-                    if attempts >= max_attempts:
-                        logger.error(f'Critical network failure after {attempts} attempts: {e}')
-                        raise
-                    sleep_time = backoff * (2 ** (attempts - 1)) + random.uniform(0, 0.1)
-                    logger.warning(f'Retrying {func.__name__} in {sleep_time:.2f}s...')
-                    time.sleep(sleep_time)
+            try:
+                return func(*args, **kwargs)
+            except (MemoryError, RuntimeError) as e:
+                sys.stderr.write(f'[CRITICAL-PERF] {func.__name__} failed: {str(e)}\n')
+                return fallback_val
+            except Exception as e:
+                sys.stderr.write(f'[ENGINE-STUTTER] {func.__name__} recovered: {type(e).__name__}\n')
+                traceback.print_exc(file=sys.stderr)
+                return fallback_val
         return wrapper
     return decorator
 
-@with_retry(max_attempts=4)
-def fetch_server_metrics(url):
-    # Simulate network instability for performance tracking
-    if random.random() < 0.7:
-        raise ConnectionError('Packet loss detected')
-    return {'ping': 'low', 'status': 'optimized'}
+class GameLogger:
+    def __init__(self):
+        self.log_file = 'game_stats.log'
+
+    @performance_trap(fallback_val=False)
+    def write_frame_metric(self, metric: str, value: float) -> bool:
+        with open(self.log_file, 'a') as f:
+            f.write(f'{metric}: {value:.4f}\n')
+        return True
+
+    @staticmethod
+    def emergency_dump(data: dict):
+        try:
+            import json
+            with open('crash_dump.json', 'w') as f:
+                json.dump(data, f)
+        except (TypeError, OSError):
+            pass
