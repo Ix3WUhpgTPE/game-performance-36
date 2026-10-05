@@ -1,37 +1,47 @@
+from typing import List, Tuple, Callable
+import math
 import time
-from typing import Generator, Iterator, Callable, Any
 
-def fps_estimator(alpha: float = 0.15) -> Generator[float, float, None]:
-    """
-    Stateful FPS estimator using a generator coroutine.
-    Yields the smoothed FPS value when sent the frame delta time (dt).
-    """
-    dt = yield 0.0
-    smoothed_fps = 1.0 / (dt if dt > 0 else 0.016)
-    while True:
-        dt = yield smoothed_fps
-        if dt > 0:
-            instant_fps = 1.0 / dt
-            smoothed_fps = (alpha * instant_fps) + ((1.0 - alpha) * smoothed_fps)
 
-class BudgetTracker:
-    """
-    A context manager tracking execution budget for performance-critical frames.
-    Returns a dictionary to dynamically check or alter budget parameters mid-frame.
-    """
-    def __init__(self, target_fps: float = 60.0):
-        self.limit = 1.0 / target_fps
-        self.start = 0.0
+def frame_time_to_fps(frame_time_ms: float) -> float:
+    """Convert frame time in milliseconds to frames per second."""
+    return 1000.0 / max(frame_time_ms, 0.0001)
 
-    def __enter__(self) -> dict[str, float]:
-        self.start = time.perf_counter()
-        self.info = {"limit": self.limit, "elapsed": 0.0, "over_budget": 0.0}
-        return self.info
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
-        elapsed = time.perf_counter() - self.start
-        self.info["elapsed"] = elapsed
-        self.info["over_budget"] = max(0.0, elapsed - self.info["limit"])
-        return False
+def calculate_percentile_fps(frame_times_ms: List[float], percentile: float) -> float:
+    """Calculate percentile FPS (e.g., 99th percentile frame time for 1% low FPS)."""
+    if not frame_times_ms:
+        return 0.0
+    sorted_times = sorted(frame_times_ms)
+    idx = math.ceil((percentile / 100.0) * len(sorted_times)) - 1
+    target_ms = sorted_times[min(max(idx, 0), len(sorted_times) - 1)]
+    return frame_time_to_fps(target_ms)
 
-def load_balancer(tasks: list[Callable[[], Any]], max
+
+def calculate_stutter_index(frame_times_ms: List[float], threshold_factor: float = 1.5) -> float:
+    """Calculate stutter index percentage based on frame spike frequency."""
+    if len(frame_times_ms) < 2:
+        return 0.0
+    
+    avg_ms = sum(frame_times_ms) / len(frame_times_ms)
+    stutters = sum(1 for ft in frame_times_ms if ft > avg_ms * threshold_factor)
+    return round((stutters / len(frame_times_ms)) * 100, 2)
+
+
+def benchmark_execution(fn: Callable, *args, **kwargs) -> Tuple[any, float]:
+    """Execute target function and return tuple of (result, execution_time_ms)."""
+    start = time.perf_counter()
+    res = fn(*args, **kwargs)
+    elapsed_ms = (time.perf_counter() - start) * 1000.0
+    return res, round(elapsed_ms, 3)
+
+
+def format_vram(bytes_val: int) -> str:
+    """Format raw byte counts into human-readable VRAM strings."""
+    units = ['B', 'KB', 'MB', 'GB', 'TB']
+    val = float(bytes_val)
+    unit_idx = 0
+    while val >= 1024.0 and unit_idx < len(units) - 1:
+        val /= 1024.0
+        unit_idx += 1
+    return f"{val:.2f} {units[unit_idx]}"
