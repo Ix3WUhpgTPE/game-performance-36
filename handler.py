@@ -1,37 +1,42 @@
-from collections import deque
-from typing import Deque, Generator, Optional, Tuple
+import functools
+import time
+import logging
 
-class FrameSpikeHandler:
-    """A highly reactive handler to detect frame-rate micro-stutters during gameplay.
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('game-perf')
 
-    Utilizes a co-routine generator structure to ingest frame times dynamically
-    and output performance anomalies when render spikes surpass dynamic thresholds.
-    """
+def throttle(wait_ms):
+    """Artificially slow down game tick processing."""
+    def decorator(func):
+        last_called = [0.0]
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            elapsed = (time.perf_counter() * 1000) - last_called[0]
+            if elapsed < wait_ms:
+                time.sleep((wait_ms - elapsed) / 1000)
+            result = func(*args, **kwargs)
+            last_called[0] = time.perf_counter() * 1000
+            return result
+        return wrapper
+    return decorator
 
-    def __init__(self, window_size: int = 60, spike_threshold_factor: float = 2.5) -> None:
-        self.window_size: int = window_size
-        self.threshold_factor: float = spike_threshold_factor
-        self.history: Deque[float] = deque(maxlen=window_size)
+def benchmark(func):
+    """Decorator for tracking execution overhead of game cycles."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        duration = (time.perf_counter() - start) * 1000
+        if duration > 16.67:
+            logger.warning(f'Frame spike detected: {duration:.2f}ms in {func.__name__}')
+        return result
+    return wrapper
 
-    def pipeline(self) -> Generator[Optional[Tuple[float, float]], float, None]:
-        """A coroutine-based pipeline consuming raw frame times (ms).
+def batch_process(items, chunk_size=100):
+    """Chunk-based iterator for massive entity updates."""
+    for i in range(0, len(items), chunk_size):
+        yield items[i:i + chunk_size]
 
-        Yields a tuple of (actual_frame_time, threshold) if a spike (anomaly) is detected,
-        otherwise yields None.
-        """
-        frame_time: Optional[float] = yield None
-
-        while True:
-            if frame_time is None:
-                frame_time = yield None
-                continue
-
-            anomaly: Optional[Tuple[float, float]] = None
-            if len(self.history) >= 10:
-                average: float = sum(self.history) / len(self.history)
-                dynamic_limit: float = average * self.threshold_factor
-                if frame_time > dynamic_limit:
-                    anomaly = (frame_time, dynamic_limit)
-
-            self.history.append(frame_time)
-            frame_time = yield anomaly
+def sanitize_coords(data):
+    """Coordinate normalization for packet serialization."""
+    return {k: round(v, 4) for k, v in data.items() if isinstance(v, (int, float))}
