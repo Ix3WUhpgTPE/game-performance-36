@@ -1,41 +1,47 @@
-import functools
 import time
-import math
+import random
+import asyncio
+import functools
+import inspect
+from typing import Callable, Any, Type, Tuple
 
-def frame_delta_throttler(target_fps=60):
-    interval = 1.0 / target_fps
-    last_time = [time.perf_counter()]
+def resilient_retry(
+    exceptions: Tuple[Type[BaseException], ...] = (Exception,),
+    max_attempts: int = 5,
+    base_delay: float = 0.1,
+    backoff_factor: float = 1.618,
+    max_jitter: float = 0.05
+) -> Callable:
+    """
+    A dual-mode (sync/async) retry decorator using Golden Ratio backoff
+    and micro-jitter to mitigate thundering herd problems in game matches.
+    """
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def calculate_delay(attempt: int) -> float: 
+            delay = base_delay * (backoff_factor ** attempt)
+            jitter = random.uniform(-max_jitter, max_jitter) * delay
+            return max(0.01, delay + jitter)
 
-    def decorator(func):
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            current = time.perf_counter()
-            delta = current - last_time[0]
-            if delta < interval:
-                time.sleep(interval - delta)
-            result = func(*args, **kwargs)
-            last_time[0] = time.perf_counter()
-            return result
-        return wrapper
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            for attempt in range(max_attempts):
+                try:
+                    return await func(*args, **kwargs)
+                except exceptions as err:
+                    if attempt == max_attempts - 1:
+                        raise err
+                    await asyncio.sleep(calculate_delay(attempt))
+
+        @functools.wraps(func)
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+            for attempt in range(max_attempts):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as err:
+                    if attempt == max_attempts - 1:
+                        raise err
+                    time.sleep(calculate_delay(attempt))
+
+        return async_wrapper if inspect.iscoroutinefunction(func) else sync_wrapper
+
     return decorator
-
-def lerp_interpolate(start, end, alpha):
-    return start + (end - start) * max(0.0, min(1.0, alpha))
-
-class DataStreamOptimizer:
-    def __init__(self, buffer_size=1024):
-        self.buffer = []
-        self.max_size = buffer_size
-
-    def push_metric(self, value):
-        self.buffer.append(value)
-        if len(self.buffer) > self.max_size:
-            self.buffer.pop(0)
-
-    def get_moving_average(self):
-        if not self.buffer:
-            return 0.0
-        return sum(self.buffer) / len(self.buffer)
-
-def bitwise_pack_coords(x, y, z):
-    return (int(x) & 0x7FF) << 22 | (int(y) & 0x7FF) << 11 | (int(z) & 0x7FF)
