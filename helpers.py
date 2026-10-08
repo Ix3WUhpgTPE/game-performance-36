@@ -1,47 +1,32 @@
-from typing import List, Tuple, Callable
-import math
-import time
+import logging
+from typing import Any, Dict, Optional
 
+def validate_frame_input(data: Dict[str, Any]) -> bool:
+    """
+    Sanitizes raw input stream for frame processing pipelines.
+    Uses a strictly typed threshold to filter noise and malformed telemetry.
+    """
+    required_keys = {'ts', 'fps', 'lat'}
+    if not all(k in data for k in required_keys):
+        return False
 
-def frame_time_to_fps(frame_time_ms: float) -> float:
-    """Convert frame time in milliseconds to frames per second."""
-    return 1000.0 / max(frame_time_ms, 0.0001)
+    try:
+        fps = float(data['fps'])
+        lat = float(data['lat'])
+        # Performance sanity check: frame time cannot be negative
+        # discard impossible spikes above 2000fps or below 0
+        if not (0 <= fps <= 2000) or lat < 0:
+            return False
+    except (ValueError, TypeError):
+        return False
 
+    return True
 
-def calculate_percentile_fps(frame_times_ms: List[float], percentile: float) -> float:
-    """Calculate percentile FPS (e.g., 99th percentile frame time for 1% low FPS)."""
-    if not frame_times_ms:
-        return 0.0
-    sorted_times = sorted(frame_times_ms)
-    idx = math.ceil((percentile / 100.0) * len(sorted_times)) - 1
-    target_ms = sorted_times[min(max(idx, 0), len(sorted_times) - 1)]
-    return frame_time_to_fps(target_ms)
+def process_validated_stream(stream: list) -> list:
+    """
+    Generator wrapper to consume valid input chunks.
+    """
+    return [frame for frame in stream if validate_frame_input(frame)]
 
-
-def calculate_stutter_index(frame_times_ms: List[float], threshold_factor: float = 1.5) -> float:
-    """Calculate stutter index percentage based on frame spike frequency."""
-    if len(frame_times_ms) < 2:
-        return 0.0
-    
-    avg_ms = sum(frame_times_ms) / len(frame_times_ms)
-    stutters = sum(1 for ft in frame_times_ms if ft > avg_ms * threshold_factor)
-    return round((stutters / len(frame_times_ms)) * 100, 2)
-
-
-def benchmark_execution(fn: Callable, *args, **kwargs) -> Tuple[any, float]:
-    """Execute target function and return tuple of (result, execution_time_ms)."""
-    start = time.perf_counter()
-    res = fn(*args, **kwargs)
-    elapsed_ms = (time.perf_counter() - start) * 1000.0
-    return res, round(elapsed_ms, 3)
-
-
-def format_vram(bytes_val: int) -> str:
-    """Format raw byte counts into human-readable VRAM strings."""
-    units = ['B', 'KB', 'MB', 'GB', 'TB']
-    val = float(bytes_val)
-    unit_idx = 0
-    while val >= 1024.0 and unit_idx < len(units) - 1:
-        val /= 1024.0
-        unit_idx += 1
-    return f"{val:.2f} {units[unit_idx]}"
+def log_validation_error(ctx: str) -> None:
+    logging.warning(f"dropped malicious or malformed input sequence: {ctx}")
