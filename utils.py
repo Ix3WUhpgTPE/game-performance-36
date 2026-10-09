@@ -1,47 +1,43 @@
 import time
 import random
-import asyncio
 import functools
-import inspect
-from typing import Callable, Any, Type, Tuple
+import logging
+from typing import Callable, Any, Tuple, Type
 
-def resilient_retry(
-    exceptions: Tuple[Type[BaseException], ...] = (Exception,),
-    max_attempts: int = 5,
-    base_delay: float = 0.1,
-    backoff_factor: float = 1.618,
-    max_jitter: float = 0.05
+logger = logging.getLogger("game_network")
+
+def jittery_fibonacci_retry(
+    retries: int = 4,
+    base_delay: float = 0.05,
+    allowed_exceptions: Tuple[Type[BaseException], ...] = (Exception,)
 ) -> Callable:
     """
-    A dual-mode (sync/async) retry decorator using Golden Ratio backoff
-    and micro-jitter to mitigate thundering herd problems in game matches.
+    A non-linear retry mechanism utilizing a Fibonacci progression and randomized 
+    jitter to stagger reconnection storming from active game clients.
     """
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        def calculate_delay(attempt: int) -> float: 
-            delay = base_delay * (backoff_factor ** attempt)
-            jitter = random.uniform(-max_jitter, max_jitter) * delay
-            return max(0.01, delay + jitter)
-
         @functools.wraps(func)
-        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-            for attempt in range(max_attempts):
-                try:
-                    return await func(*args, **kwargs)
-                except exceptions as err:
-                    if attempt == max_attempts - 1:
-                        raise err
-                    await asyncio.sleep(calculate_delay(attempt))
-
-        @functools.wraps(func)
-        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-            for attempt in range(max_attempts):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            fib_prev, fib_curr = base_delay, base_delay
+            
+            for attempt in range(1, retries + 1):
                 try:
                     return func(*args, **kwargs)
-                except exceptions as err:
-                    if attempt == max_attempts - 1:
-                        raise err
-                    time.sleep(calculate_delay(attempt))
-
-        return async_wrapper if inspect.iscoroutinefunction(func) else sync_wrapper
-
+                except allowed_exceptions as exc:
+                    if attempt == retries:
+                        raise exc
+                    
+                    # Stagger network requests with randomized scale factor
+                    jitter = random.uniform(0.8, 1.3)
+                    wait_time = fib_curr * jitter
+                    
+                    # Advance sequence
+                    fib_prev, fib_curr = fib_curr, fib_prev + fib_curr
+                    
+                    logger.warning(
+                        "Network event '%s' errored (attempt %d/%d). Retrying in %.3fs... Error: %s",
+                        func.__name__, attempt, retries, wait_time, exc
+                    )
+                    time.sleep(wait_time)
+        return wrapper
     return decorator
