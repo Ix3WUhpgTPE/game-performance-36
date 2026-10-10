@@ -1,55 +1,40 @@
 import json
 import os
-from collections import ChainMap
-from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any, Dict
 
-DEFAULT_PROFILE: Dict[str, Any] = {
-    "target_fps": 144,
-    "overlay_enabled": True,
-    "overlay_position": "top_left",
-    "telemetry_interval_ms": 250,
-    "auto_adjust_resolution": False,
-    "gpu_power_plan": "ultra_performance",
-    "hotkeys": {"toggle_overlay": "F11", "benchmark": "F12"},
-}
+class ConfigLoader:
+    def __init__(self, path: str, defaults: Dict[str, Any]):
+        self.path = path
+        self.data = defaults
+        self._load()
 
-class GamingConfig(ChainMap):
-    """Cascading configuration layer for gaming overlay and performance tuning."""
-
-    def __init__(self, config_path: Union[str, Path] = "game_perf.json", **overrides):
-        file_cfg = self._load_json(Path(config_path))
-        env_cfg = self._extract_env_overrides()
-        super().__init__(overrides, env_cfg, file_cfg, DEFAULT_PROFILE)
-
-    def _load_json(self, path: Path) -> Dict[str, Any]:
-        if path.exists() and path.is_file():
+    def _load(self) -> None:
+        if os.path.exists(self.path):
             try:
-                with path.open("r", encoding="utf-8") as f:
-                    return json.load(f)
-            except json.JSONDecodeError:
+                with open(self.path, 'r') as f:
+                    loaded = json.load(f)
+                    self.data.update(loaded)
+            except (json.JSONDecodeError, IOError):
                 pass
-        return {}
 
-    def _extract_env_overrides(self) -> Dict[str, Any]:
-        env_map = {}
-        prefix = "GAME_PERF_"
-        for key, val in os.environ.items():
-            if key.startswith(prefix):
-                clean_key = key[len(prefix):].lower()
-                if val.isdigit():
-                    env_map[clean_key] = int(val)
-                elif val.lower() in ("true", "false"):
-                    env_map[clean_key] = val.lower() == "true"
-                else:
-                    env_map[clean_key] = val
-        return env_map
+    def get(self, key: str, fallback: Any = None) -> Any:
+        return self.data.get(key, fallback)
 
-    def __getattr__(self, item: str) -> Any:
-        try:
-            return self[item]
-        except KeyError:
-            raise AttributeError(f"Configuration key '{item}' not found")
+    def __getitem__(self, key: str) -> Any:
+        return self.data[key]
 
-    def export_flat(self) -> Dict[str, Any]:
-        return dict(self)
+    def sync(self) -> None:
+        with open(self.path, 'w') as f:
+            json.dump(self.data, f, indent=4)
+
+def get_game_config(overrides: Dict[str, Any] = None) -> ConfigLoader:
+    defaults = {
+        "fps_limit": 144,
+        "vsync": False,
+        "resolution": [1920, 1080],
+        "graphics_preset": "ultra"
+    }
+    loader = ConfigLoader("settings.json", defaults)
+    if overrides:
+        loader.data.update(overrides)
+    return loader
