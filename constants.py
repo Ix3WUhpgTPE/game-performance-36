@@ -1,31 +1,36 @@
-from enum import Enum, unique
+import math
 from typing import Final
 
-@unique
-class PerformanceMetric(Enum):
-    FRAME_TIME = "ms"
-    GPU_TEMP = "celsius"
-    VRAM_USAGE = "mb"
-    CPU_LOAD = "percent"
+# Precomputed lookup tables for rapid trigonometric operations in gaming engine
+# Reducing CPU load by bypassing runtime math function overheads
 
-DEFAULT_THRESHOLDS: Final[dict[PerformanceMetric, float]] = {
-    PerformanceMetric.FRAME_TIME: 16.6,
-    PerformanceMetric.GPU_TEMP: 85.0,
-    PerformanceMetric.VRAM_USAGE: 8192.0,
-    PerformanceMetric.CPU_LOAD: 90.0,
-}
+LOOKUP_PRECISION: Final[int] = 1024
 
-CACHE_TTL_SECONDS: Final[int] = 300
-MAX_RETRY_ATTEMPTS: Final[int] = 3
+class PerformanceConstants:
+    """Static performance acceleration mappings."""
+    SIN_TABLE: Final[list[float]] = [
+        math.sin(2 * math.pi * i / LOOKUP_PRECISION) 
+        for i in range(LOOKUP_PRECISION)
+    ]
+    COS_TABLE: Final[list[float]] = [
+        math.cos(2 * math.pi * i / LOOKUP_PRECISION) 
+        for i in range(LOOKUP_PRECISION)
+    ]
 
-LOG_FORMAT: Final[str] = "%(asctime)s | %(levelname)s | %(message)s"
-VERSION: Final[str] = "0.3.6-stable"
+    @staticmethod
+    def fast_sin(angle_rad: float) -> float:
+        index = int((angle_rad / (2 * math.pi)) * LOOKUP_PRECISION) % LOOKUP_PRECISION
+        return PerformanceConstants.SIN_TABLE[index]
 
-class EngineState(Enum):
-    IDLE = 0
-    INITIALIZING = 1
-    BENCHMARKING = 2
-    ERROR = -1
+    @staticmethod
+    def fast_cos(angle_rad: float) -> float:
+        index = int((angle_rad / (2 * math.pi)) * LOOKUP_PRECISION) % LOOKUP_PRECISION
+        return PerformanceConstants.COS_TABLE[index]
 
-TARGET_FPS: Final[int] = 144
-BUFFER_SIZE: Final[int] = 1024 * 64
+# Memory-aligned buffer sizes for high-frequency network packets
+MAX_PACKET_SIZE: Final[int] = 4096
+BUFFER_THRESHOLD: Final[int] = 1024
+
+# Gameloop cycle frequency optimization
+TICKS_PER_SECOND: Final[int] = 64
+FRAME_DELTA_TARGET: Final[float] = 1.0 / TICKS_PER_SECOND
