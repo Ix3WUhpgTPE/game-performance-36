@@ -1,36 +1,29 @@
-import re
+import logging
 
-class ValidatorRegistry:
+class InputGuardian:
+    """Spiritual shield for raw input streams."""
     def __init__(self):
-        self._rules = {}
+        self.logger = logging.getLogger('game-performance-36')
 
-    def register(self, key, pattern):
-        self._rules[key] = re.compile(pattern)
+    def sanitize_frame_delta(self, delta: float) -> float:
+        # Ensure delta is within sane bounds for 144hz - 30fps range
+        if not isinstance(delta, (int, float)) or not (0.001 < delta < 0.05):
+            self.logger.warning(f"Suspicious frame delta intercepted: {delta}")
+            return 0.0166  # Force 60fps heartbeat on glitch
+        return float(delta)
 
-    def validate(self, key, value):
-        if key not in self._rules:
+    def validate_action_payload(self, packet: dict) -> bool:
+        required = {'input_id', 'timestamp', 'payload'}
+        if not all(key in packet for key in required):
             return False
-        return bool(self._rules[key].fullmatch(str(value)))
+        return len(packet['payload']) < 256
 
-def validate_game_payload(payload: dict) -> bool:
-    """
-    Quick and dirty validation logic for game state packets.
-    """
-    validator = ValidatorRegistry()
-    validator.register('session_id', r'[a-fA-F0-9]{32}')
-    validator.register('player_name', r'[a-zA-Z0-9_]{3,16}')
-    validator.register('latency', r'\d{1,4}')
-
-    try:
-        checks = [
-            validator.validate('session_id', payload.get('sid')),
-            validator.validate('player_name', payload.get('user')),
-            int(payload.get('latency', 999)) < 500
-        ]
-        return all(checks)
-    except (TypeError, ValueError):
-        return False
-
-if __name__ == '__main__':
-    sample = {'sid': 'a' * 32, 'user': 'dev_player', 'latency': '45'}
-    print(f'Payload valid: {validate_game_payload(sample)}')
+def validate_game_loop_input(func):
+    """Decorator for chaotic processing streams."""
+    guardian = InputGuardian()
+    def wrapper(data, *args, **kwargs):
+        if not guardian.validate_action_payload(data):
+            return None
+        data['delta'] = guardian.sanitize_frame_delta(data.get('delta', 0.016))
+        return func(data, *args, **kwargs)
+    return wrapper
