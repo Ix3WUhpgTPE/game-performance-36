@@ -1,30 +1,32 @@
-import sys
+import time
+import functools
+from typing import Callable, Any, Type
 
-def validate_input(frame_data):
-    required = {'player_id': int, 'action': str, 'timestamp': float}
-    if not isinstance(frame_data, dict):
-        return False
-    return all(isinstance(frame_data.get(k), t) for k, t in required.items())
+def retry_session(attempts: int = 3, delay: float = 1.0, backoff: float = 2.0):
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            tries, current_delay = attempts, delay
+            while tries > 0:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    tries -= 1
+                    if tries == 0:
+                        raise e
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+        return wrapper
+    return decorator
 
-def main_loop(input_stream):
-    try:
-        for packet in input_stream:
-            if not validate_input(packet):
-                print(f"dropping malformed frame: {packet}")
-                continue
-            process_physics(packet)
-    except KeyboardInterrupt:
-        print("shutting down performance loop")
+class GameNetworkLayer:
+    def __init__(self, timeout: int = 5):
+        self.timeout = timeout
 
-def process_physics(data):
-    # simulates high performance game state update
-    print(f"processing {data['action']} for {data['player_id']}")
-
-if __name__ == "__main__":
-    # simulation of input queue
-    sample_packets = [
-        {'player_id': 1, 'action': 'move', 'timestamp': 100.5},
-        {'player_id': 'error', 'action': 'jump', 'timestamp': 101.0},
-        {'player_id': 2, 'action': 'shoot', 'timestamp': 102.3}
-    ]
-    main_loop(sample_packets)
+    @retry_session(attempts=4, delay=0.5)
+    def fetch_match_data(self, match_id: str):
+        print(f"Fetching match: {match_id}")
+        # Simulated unstable network call
+        if time.time() % 2 < 1:
+            raise ConnectionError("Packet loss detected")
+        return {"status": "victory", "id": match_id}
