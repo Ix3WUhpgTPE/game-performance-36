@@ -1,43 +1,41 @@
-import time
-import random
 import functools
-import logging
-from typing import Callable, Any, Tuple, Type
+import time
+import collections
 
-logger = logging.getLogger("game_network")
+class SmartCache:
+    def __init__(self, limit=1024):
+        self.cache = collections.OrderedDict()
+        self.limit = limit
 
-def jittery_fibonacci_retry(
-    retries: int = 4,
-    base_delay: float = 0.05,
-    allowed_exceptions: Tuple[Type[BaseException], ...] = (Exception,)
-) -> Callable:
-    """
-    A non-linear retry mechanism utilizing a Fibonacci progression and randomized 
-    jitter to stagger reconnection storming from active game clients.
-    """
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+    def __call__(self, func):
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            fib_prev, fib_curr = base_delay, base_delay
-            
-            for attempt in range(1, retries + 1):
-                try:
-                    return func(*args, **kwargs)
-                except allowed_exceptions as exc:
-                    if attempt == retries:
-                        raise exc
-                    
-                    # Stagger network requests with randomized scale factor
-                    jitter = random.uniform(0.8, 1.3)
-                    wait_time = fib_curr * jitter
-                    
-                    # Advance sequence
-                    fib_prev, fib_curr = fib_curr, fib_prev + fib_curr
-                    
-                    logger.warning(
-                        "Network event '%s' errored (attempt %d/%d). Retrying in %.3fs... Error: %s",
-                        func.__name__, attempt, retries, wait_time, exc
-                    )
-                    time.sleep(wait_time)
+        def wrapper(*args, **kwargs):
+            key = (args, tuple(sorted(kwargs.items())))
+            if key in self.cache:
+                self.cache.move_to_end(key)
+                return self.cache[key]
+            result = func(*args, **kwargs)
+            self.cache[key] = result
+            self.cache.move_to_end(key)
+            if len(self.cache) > self.limit:
+                self.cache.popitem(last=False)
+            return result
+        return wrapper
+
+    def purge_stale(self):
+        self.cache.clear()
+
+optimized_memoization = SmartCache(limit=2048)
+
+def frame_budget_guard(ms_limit):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            elapsed = (time.perf_counter() - start) * 1000
+            if elapsed > ms_limit:
+                print(f"Warning: {func.__name__} exceeded budget: {elapsed:.2f}ms")
+            return result
         return wrapper
     return decorator
