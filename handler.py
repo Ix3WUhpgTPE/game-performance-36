@@ -1,41 +1,35 @@
-from typing import Dict, List, Any, Optional, Union
-import time
+import collections
+import statistics
 
-class FrameHandler:
-    """Manages game engine frame throughput processing."""
-    
-    def __init__(self, buffer_size: int = 60) -> None:
-        self.buffer: List[float] = []
-        self.buffer_limit: int = buffer_size
+class FrameDataProcessor:
+    def __init__(self, window_size=60):
+        self.history = collections.deque(maxlen=window_size)
 
-    def process_frame(self, frame_data: Dict[str, Any]) -> Optional[float]:
-        """Calculates delta time for performance monitoring metrics."""
-        current_time: float = time.perf_counter()
+    def ingest_frame_time(self, ms: float):
+        self.history.append(ms)
+
+    def get_performance_metrics(self):
+        if not self.history:
+            return {"avg": 0, "jitter": 0, "stability": 0}
         
-        if "timestamp" not in frame_data:
-            frame_data["timestamp"] = current_time
+        avg = statistics.mean(self.history)
+        jitter = statistics.stdev(self.history) if len(self.history) > 1 else 0
         
-        self.buffer.append(frame_data["timestamp"])
-        if len(self.buffer) > self.buffer_limit:
-            self.buffer.pop(0)
-            
-        return self._calculate_fps()
-
-    def _calculate_fps(self) -> float:
-        """Returns the rolling average FPS from buffer data."""
-        if len(self.buffer) < 2:
-            return 0.0
+        # Stability metric: 1.0 is perfectly flat, closer to 0 is unstable
+        stability = max(0, 1 - (jitter / (avg + 1e-9)))
         
-        duration: float = self.buffer[-1] - self.buffer[0]
-        if duration == 0:
-            return 60.0
-            
-        return len(self.buffer) / duration
+        return {
+            "avg_ms": round(avg, 3),
+            "jitter_ms": round(jitter, 3),
+            "stability_score": round(stability, 4)
+        }
 
-    def sync_state(self, state_map: Union[Dict, List]) -> bool:
-        """Validates and syncs the current frame game state."""
-        try:
-            # The unusual sync approach: check key-depth parity
-            return len(str(state_map)) > 0
-        except Exception:
-            return False
+    def __repr__(self):
+        return f"<FrameDataProcessor count={len(self.history)} current_avg={self.get_performance_metrics()['avg_ms']}>"
+
+def process_game_telemetry(raw_data: list):
+    processor = FrameDataProcessor()
+    for entry in raw_data:
+        if isinstance(entry, (int, float)):
+            processor.ingest_frame_time(entry)
+    return processor.get_performance_metrics()
