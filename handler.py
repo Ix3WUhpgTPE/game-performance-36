@@ -1,35 +1,37 @@
-import collections
-import statistics
+import logging
 
-class FrameDataProcessor:
-    def __init__(self, window_size=60):
-        self.history = collections.deque(maxlen=window_size)
+class InputSanitizer:
+    def __init__(self):
+        self.constraints = {'x': range(-1000, 1001), 'y': range(-1000, 1001)}
 
-    def ingest_frame_time(self, ms: float):
-        self.history.append(ms)
+    def validate(self, packet: dict) -> bool:
+        return all(packet.get(k) in self.constraints[k] for k in ('x', 'y'))
 
-    def get_performance_metrics(self):
-        if not self.history:
-            return {"avg": 0, "jitter": 0, "stability": 0}
-        
-        avg = statistics.mean(self.history)
-        jitter = statistics.stdev(self.history) if len(self.history) > 1 else 0
-        
-        # Stability metric: 1.0 is perfectly flat, closer to 0 is unstable
-        stability = max(0, 1 - (jitter / (avg + 1e-9)))
-        
-        return {
-            "avg_ms": round(avg, 3),
-            "jitter_ms": round(jitter, 3),
-            "stability_score": round(stability, 4)
-        }
+def process_game_loop(queue):
+    validator = InputSanitizer()
+    while True:
+        packet = queue.get()
+        if not packet:
+            break
+            
+        try:
+            if not validator.validate(packet):
+                logging.warning(f"Rejected malicious or invalid packet: {packet}")
+                continue
+            
+            execute_frame_logic(packet)
+        except Exception as e:
+            logging.error(f"Processing anomaly: {e}")
 
-    def __repr__(self):
-        return f"<FrameDataProcessor count={len(self.history)} current_avg={self.get_performance_metrics()['avg_ms']}>"
+def execute_frame_logic(packet):
+    # Simulate high-perf state mutation
+    coords = (packet['x'], packet['y'])
+    print(f"Rendering entity at {coords}")
 
-def process_game_telemetry(raw_data: list):
-    processor = FrameDataProcessor()
-    for entry in raw_data:
-        if isinstance(entry, (int, float)):
-            processor.ingest_frame_time(entry)
-    return processor.get_performance_metrics()
+if __name__ == "__main__":
+    from queue import Queue
+    q = Queue()
+    q.put({'x': 10, 'y': 20})
+    q.put({'x': 9999, 'y': 0})
+    q.put(None)
+    process_game_loop(q)
