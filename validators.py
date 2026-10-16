@@ -1,29 +1,36 @@
+import functools
 import logging
 
-class InputGuardian:
-    """Spiritual shield for raw input streams."""
-    def __init__(self):
-        self.logger = logging.getLogger('game-performance-36')
+logger = logging.getLogger('game-performance-36')
 
-    def sanitize_frame_delta(self, delta: float) -> float:
-        # Ensure delta is within sane bounds for 144hz - 30fps range
-        if not isinstance(delta, (int, float)) or not (0.001 < delta < 0.05):
-            self.logger.warning(f"Suspicious frame delta intercepted: {delta}")
-            return 0.0166  # Force 60fps heartbeat on glitch
-        return float(delta)
+class PerformanceConstraintError(Exception):
+    pass
 
-    def validate_action_payload(self, packet: dict) -> bool:
-        required = {'input_id', 'timestamp', 'payload'}
-        if not all(key in packet for key in required):
-            return False
-        return len(packet['payload']) < 256
+def validate_frame_budget(max_ms: float = 16.6):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                import time
+                start = time.perf_counter()
+                result = func(*args, **kwargs)
+                duration = (time.perf_counter() - start) * 1000
+                if duration > max_ms:
+                    logger.warning(f'frame budget exceeded: {duration:.2f}ms')
+                return result
+            except Exception as e:
+                logger.error(f'validation failure in {func.__name__}: {e}')
+                return None
+        return wrapper
+    return decorator
 
-def validate_game_loop_input(func):
-    """Decorator for chaotic processing streams."""
-    guardian = InputGuardian()
-    def wrapper(data, *args, **kwargs):
-        if not guardian.validate_action_payload(data):
-            return None
-        data['delta'] = guardian.sanitize_frame_delta(data.get('delta', 0.016))
-        return func(data, *args, **kwargs)
-    return wrapper
+def robust_int_validator(value, default=0):
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+def sanitize_gpu_metrics(metrics: dict):
+    if not isinstance(metrics, dict):
+        return {}
+    return {k: float(v) if isinstance(v, (int, float)) else 0.0 for k, v in metrics.items()}
