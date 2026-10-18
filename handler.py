@@ -1,37 +1,33 @@
-import logging
+from typing import Dict, List, Union, Optional
 
-class InputSanitizer:
-    def __init__(self):
-        self.constraints = {'x': range(-1000, 1001), 'y': range(-1000, 1001)}
+class FrameBatchHandler:
+    """Handles high-frequency frame data for performance metrics."""
 
-    def validate(self, packet: dict) -> bool:
-        return all(packet.get(k) in self.constraints[k] for k in ('x', 'y'))
+    def __init__(self, buffer_size: int = 60) -> None:
+        self.buffer: List[float] = []
+        self.buffer_size: int = buffer_size
 
-def process_game_loop(queue):
-    validator = InputSanitizer()
-    while True:
-        packet = queue.get()
-        if not packet:
-            break
-            
-        try:
-            if not validator.validate(packet):
-                logging.warning(f"Rejected malicious or invalid packet: {packet}")
-                continue
-            
-            execute_frame_logic(packet)
-        except Exception as e:
-            logging.error(f"Processing anomaly: {e}")
+    def ingest_frame_time(self, delta_time: float) -> Optional[float]:
+        """Adds a new frame duration and returns current average."""
+        self.buffer.append(delta_time)
+        if len(self.buffer) > self.buffer_size:
+            self.buffer.pop(0)
+        return sum(self.buffer) / len(self.buffer)
 
-def execute_frame_logic(packet):
-    # Simulate high-perf state mutation
-    coords = (packet['x'], packet['y'])
-    print(f"Rendering entity at {coords}")
+    def get_performance_stats(self) -> Dict[str, Union[int, float]]:
+        """Calculates basic performance snapshot for the frame buffer."""
+        if not self.buffer:
+            return {"avg": 0.0, "count": 0}
+        
+        avg_dt: float = sum(self.buffer) / len(self.buffer)
+        return {
+            "avg": round(avg_dt, 4),
+            "fps_estimate": round(1.0 / avg_dt, 2) if avg_dt > 0 else 0.0,
+            "count": len(self.buffer)
+        }
 
-if __name__ == "__main__":
-    from queue import Queue
-    q = Queue()
-    q.put({'x': 10, 'y': 20})
-    q.put({'x': 9999, 'y': 0})
-    q.put(None)
-    process_game_loop(q)
+def process_batch(data: List[float], handler: FrameBatchHandler) -> Dict[str, float]:
+    """Batch processing utility for frame timing inputs."""
+    for entry in data:
+        handler.ingest_frame_time(entry)
+    return handler.get_performance_stats()
