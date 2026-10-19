@@ -1,33 +1,25 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+import sys
+from datetime import datetime
 
-def setup_game_logger(name: str = 'game_perf') -> logging.Logger:
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-    
-    if not logger.handlers:
-        formatter = logging.Formatter(
-            '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
-        )
-        
-        log_dir = 'logs'
-        os.makedirs(log_dir, exist_ok=True)
-        file_path = os.path.join(log_dir, f'{name}.log')
-        
-        handler = RotatingFileHandler(
-            file_path, 
-            maxBytes=5 * 1024 * 1024, 
-            backupCount=3
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        
-        console = logging.StreamHandler()
-        console.setFormatter(formatter)
-        logger.addHandler(console)
-        
-    return logger
+class PerformanceLogger:
+    def __init__(self, name: str = "game-perf"):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
+        self._setup_handler()
 
-logger = setup_game_logger()
+    def _setup_handler(self):
+        fmt = "[%(asctime)s] | %(levelname)s | %(message)s"
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(logging.Formatter(fmt))
+        self.logger.addHandler(handler)
+
+    def log_metric(self, tag: str, value: float):
+        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        self.logger.info(f"METRIC_UPDATE >> {tag}: {value:.4f} @ {timestamp}")
+
+    def critical_stall(self, duration: float):
+        self.logger.critical(f"FRAME_STALL DETECTED: {duration}ms")
+
+def get_logger(name: str = "game-perf") -> PerformanceLogger:
+    return PerformanceLogger(name)
