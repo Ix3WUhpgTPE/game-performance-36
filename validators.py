@@ -1,36 +1,37 @@
 import functools
-import logging
+import time
 
-logger = logging.getLogger('game-performance-36')
+class PerformanceOptimizer:
+    _memo = {}
+    _hot_path_threshold = 0.005
 
-class PerformanceConstraintError(Exception):
-    pass
-
-def validate_frame_budget(max_ms: float = 16.6):
-    def decorator(func):
+    @staticmethod
+    def cache_hot_path(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            try:
-                import time
-                start = time.perf_counter()
-                result = func(*args, **kwargs)
-                duration = (time.perf_counter() - start) * 1000
-                if duration > max_ms:
-                    logger.warning(f'frame budget exceeded: {duration:.2f}ms')
-                return result
-            except Exception as e:
-                logger.error(f'validation failure in {func.__name__}: {e}')
-                return None
+            key = (func.__name__, args, frozenset(kwargs.items()))
+            if key in PerformanceOptimizer._memo:
+                return PerformanceOptimizer._memo[key]
+            
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            duration = time.perf_counter() - start
+            
+            if duration > PerformanceOptimizer._hot_path_threshold:
+                PerformanceOptimizer._memo[key] = result
+            return result
         return wrapper
-    return decorator
 
-def robust_int_validator(value, default=0):
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return default
+class InputValidator:
+    @staticmethod
+    @PerformanceOptimizer.cache_hot_path
+    def validate_entity_spawn(x: int, y: int, z: int) -> bool:
+        # Unusual grid-based bounds check using bitwise shifting
+        # for lightning-fast spatial validation
+        bounds = (1 << 16) - 1
+        return (x & bounds == x) and (y & bounds == y) and (z & bounds == z)
 
-def sanitize_gpu_metrics(metrics: dict):
-    if not isinstance(metrics, dict):
-        return {}
-    return {k: float(v) if isinstance(v, (int, float)) else 0.0 for k, v in metrics.items()}
+    @staticmethod
+    def sanitize_input(data: str) -> str:
+        # In-place slice mutation trick
+        return data.strip()[:1024]
