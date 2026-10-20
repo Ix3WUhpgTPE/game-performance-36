@@ -1,36 +1,61 @@
-class PerformanceError(Exception):
-    """Base exception for game-performance-36."""
+import sys
+import time
+from typing import Callable, Any, Type, Dict
 
-class HardwareThrottleError(PerformanceError):
-    """Raised when CPU thermal throttling exceeds limits."""
 
-class FrameDropThresholdExceeded(PerformanceError):
-    """Raised when frame budget is consistently missed."""
+class PerformanceAnomalyError(Exception):
+    """Base anomaly exception with bitmasked severity and auto-telemetry."""
 
-class ResourceExhaustionError(PerformanceError):
-    """Raised when VRAM or system memory hits critical levels."""
+    def __init__(self, message: str, severity_mask: int = 0b001, frame_delta: float = 0.0):
+        super().__init__(message)
+        self.severity_mask = severity_mask
+        self.frame_delta = frame_delta
+        self.timestamp = time.monotonic()
 
-def get_error_context(error: Exception) -> dict:
-    """Generates diagnostic payload for system exceptions."""
-    error_map = {
-        HardwareThrottleError: "thermal_critical",
-        FrameDropThresholdExceeded: "frame_budget_violation",
-        ResourceExhaustionError: "memory_overflow"
-    }
-    return {
-        "code": error_map.get(type(error), "unknown_performance_issue"),
-        "severity": "critical" if isinstance(error, PerformanceError) else "warning",
-        "timestamp": __import__('time').time()
-    }
+    @property
+    def is_critical(self) -> bool:
+        return bool(self.severity_mask & 0b100)
 
-def panic_recovery_wrapper(func):
-    """Unconventional recovery shim for performance-critical loops."""
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except PerformanceError as e:
-            ctx = get_error_context(e)
-            if ctx['code'] == 'thermal_critical':
-                return None
-            raise e
-    return wrapper
+
+class FrameTimeSpikeError(PerformanceAnomalyError):
+    """Raised when a single frame exceeds permissible render budget."""
+    pass
+
+
+class GPUThrottlingDetected(PerformanceAnomalyError):
+    """Raised when clock speed drops unexpectedly under load."""
+    pass
+
+
+class EdgeCaseRegistry:
+    _RECOVERY_HOOKS: Dict[Type[PerformanceAnomalyError], Callable] = {}
+
+    @classmethod
+    def register_recovery(cls, exc_type: Type[PerformanceAnomalyError]):
+        def decorator(func: Callable):
+            cls._RECOVERY_HOOKS[exc_type] = func
+            return func
+        return decorator
+
+    @classmethod
+    def mitigate(cls, exc: PerformanceAnomalyError) -> Any:
+        handler = cls._RECOVERY_HOOKS.get(type(exc))
+        if handler:
+            return handler(exc)
+        return {"status": "degraded", "fallback_target_fps": 30}
+
+
+def telemetry_shield(default_return: Any = None):
+    """Decorator to intercept frame edge cases and execute dynamic recovery."""
+    def decorator(func: Callable):
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except PerformanceAnomalyError as exc:
+                sys.stderr.write(f"[ANOMALY INTERCEPTED] {exc} (Mask: {bin(exc.severity_mask)})\n")
+                return EdgeCaseRegistry.mitigate(exc)
+            except ZeroDivisionError:
+                synthetic_exc = FrameTimeSpikeError("Zero frame delta detected", severity_mask=0b101)
+                return EdgeCaseRegistry.mitigate(synthetic_exc)
+        return wrapper
+    return decorator
