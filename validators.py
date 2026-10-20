@@ -1,37 +1,41 @@
-import functools
-import time
+from typing import Union, Optional, Callable
 
-class PerformanceOptimizer:
-    _memo = {}
-    _hot_path_threshold = 0.005
+Numeric = Union[int, float]
 
-    @staticmethod
-    def cache_hot_path(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            key = (func.__name__, args, frozenset(kwargs.items()))
-            if key in PerformanceOptimizer._memo:
-                return PerformanceOptimizer._memo[key]
-            
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-            duration = time.perf_counter() - start
-            
-            if duration > PerformanceOptimizer._hot_path_threshold:
-                PerformanceOptimizer._memo[key] = result
-            return result
-        return wrapper
+def frame_rate_cap(limit: Numeric) -> Callable[[Numeric], Numeric]:
+    """
+    factory for strict frame rate bounding.
+    returns a function that clamps input to a performance-friendly range.
+    """
+    def validator(fps: Numeric) -> Numeric:
+        return min(max(0, fps), limit)
+    return validator
 
-class InputValidator:
-    @staticmethod
-    @PerformanceOptimizer.cache_hot_path
-    def validate_entity_spawn(x: int, y: int, z: int) -> bool:
-        # Unusual grid-based bounds check using bitwise shifting
-        # for lightning-fast spatial validation
-        bounds = (1 << 16) - 1
-        return (x & bounds == x) and (y & bounds == y) and (z & bounds == z)
+def validate_latency(ms: Numeric, threshold: Numeric = 50.0) -> bool:
+    """
+    check against input lag thresholds.
+    returns true if latency is within the acceptable gaming window.
+    """
+    return ms <= threshold
 
-    @staticmethod
-    def sanitize_input(data: str) -> str:
-        # In-place slice mutation trick
-        return data.strip()[:1024]
+def sanitize_config_value(value: Optional[str], default: str = "off") -> str:
+    """
+    string normalization for game settings.
+    ensures user inputs conform to expected toggle states.
+    """
+    allowed = {"on", "off", "ultra", "low"}
+    clean_val = str(value).lower() if value else ""
+    return clean_val if clean_val in allowed else default
+
+class PerformanceGuard:
+    """
+    context manager for tracking performance metrics.
+    """
+    def __init__(self, target: str):
+        self.target = target
+
+    def __enter__(self) -> None:
+        pass
+
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
+        pass
