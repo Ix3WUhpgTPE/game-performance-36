@@ -1,36 +1,34 @@
-import math
-from typing import Final
+from enum import IntEnum
+from typing import Dict, Final
 
-# Precomputed lookup tables for rapid trigonometric operations in gaming engine
-# Reducing CPU load by bypassing runtime math function overheads
+class PerformanceTier(IntEnum):
+    POTATO = 0
+    CONSOLE = 1
+    MID_RANGE = 2
+    ENTHUSIAST = 3
+    GOD_MODE = 4
 
-LOOKUP_PRECISION: Final[int] = 1024
+GAME_RESOLUTION_PRESETS: Final[Dict[str, tuple[int, int]]] = {
+    'ultra_low': (800, 600),
+    'hd': (1280, 720),
+    'full_hd': (1920, 1080),
+    'qhd': (2560, 1440),
+    '4k': (3840, 2160)
+}
 
-class PerformanceConstants:
-    """Static performance acceleration mappings."""
-    SIN_TABLE: Final[list[float]] = [
-        math.sin(2 * math.pi * i / LOOKUP_PRECISION) 
-        for i in range(LOOKUP_PRECISION)
-    ]
-    COS_TABLE: Final[list[float]] = [
-        math.cos(2 * math.pi * i / LOOKUP_PRECISION) 
-        for i in range(LOOKUP_PRECISION)
-    ]
+FRAME_BUDGET_MAP: Final[Dict[PerformanceTier, float]] = {
+    PerformanceTier.POTATO: 33.33,
+    PerformanceTier.CONSOLE: 16.67,
+    PerformanceTier.MID_RANGE: 11.11,
+    PerformanceTier.ENTHUSIAST: 6.94,
+    PerformanceTier.GOD_MODE: 4.17
+}
 
-    @staticmethod
-    def fast_sin(angle_rad: float) -> float:
-        index = int((angle_rad / (2 * math.pi)) * LOOKUP_PRECISION) % LOOKUP_PRECISION
-        return PerformanceConstants.SIN_TABLE[index]
+def get_frame_budget(tier: PerformanceTier) -> float:
+    return FRAME_BUDGET_MAP.get(tier, 16.67)
 
-    @staticmethod
-    def fast_cos(angle_rad: float) -> float:
-        index = int((angle_rad / (2 * math.pi)) * LOOKUP_PRECISION) % LOOKUP_PRECISION
-        return PerformanceConstants.COS_TABLE[index]
-
-# Memory-aligned buffer sizes for high-frequency network packets
-MAX_PACKET_SIZE: Final[int] = 4096
-BUFFER_THRESHOLD: Final[int] = 1024
-
-# Gameloop cycle frequency optimization
-TICKS_PER_SECOND: Final[int] = 64
-FRAME_DELTA_TARGET: Final[float] = 1.0 / TICKS_PER_SECOND
+class ConfigDefaults:
+    DEFAULT_FPS_CAP = 60
+    V_SYNC_ENABLED = True
+    ASYNC_LOADING = True
+    MAX_SHADER_CACHE_SIZE_MB = 1024
