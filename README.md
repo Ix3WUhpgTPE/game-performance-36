@@ -1,17 +1,17 @@
 # game-performance-36
 
-`game-performance-36` is a lightweight Python toolkit designed to monitor, analyze, and optimize frame rates and resource utilization for PC gaming environments. It provides real-time telemetry and automated system adjustment scripts to ensure peak performance during intense gameplay sessions.
+`game-performance-36` is a lightweight Python toolkit designed to monitor and optimize system resource allocation for high-performance gaming. It identifies bottlenecks in CPU scheduling and memory throughput to ensure stable frame rates during intensive sessions.
 
 ## Features
 
-*   **Real-time Telemetry:** Captures CPU/GPU temperature, load percentages, and frame time variance with sub-millisecond latency.
-*   **Process Priority Orchestrator:** Automatically assigns high-priority CPU affinity to target game executables while background tasks are throttled.
-*   **Thermal Throttling Mitigation:** Dynamically adjusts system power profiles when hardware temperature thresholds are breached to prevent stuttering.
-*   **Performance Benchmarking:** Exports high-fidelity session logs to CSV for deep-dive analysis in Excel or pandas.
+*   **Real-time Telemetry:** Tracks CPU core utilization and GPU temperature trends with sub-second polling rates.
+*   **Process Prioritization:** Automatically elevates the priority of active game executables to minimize input latency.
+*   **Background Bloat Suppression:** Temporarily suspends resource-heavy non-gaming processes to free up RAM.
+*   **Hardware-Aware Profiling:** Generates optimized configuration reports based on your specific GPU/CPU architecture.
 
 ## Installation
 
-Ensure you have Python 3.8+ installed. Clone the repository and install the required dependencies:
+Ensure you have Python 3.8+ installed. Clone the repository and install the dependencies:
 
 ```bash
 git clone https://github.com/Developer/game-performance-36.git
@@ -19,29 +19,23 @@ cd game-performance-36
 pip install -r requirements.txt
 ```
 
-*Note: Administrative/Sudo privileges are required for process priority management.*
+## Usage
 
-## Basic Usage
-
-To monitor a specific application during gameplay, run the main module with the process name:
+To start the monitoring engine and apply default optimizations, run the script with elevated privileges:
 
 ```bash
-python monitor.py --process "eldenring.exe" --interval 0.5
+# Run with administrative/sudo permissions for process management
+sudo python main.py --mode optimize --target "game_executable_name"
 ```
 
-For a full optimization run that applies settings automatically:
+You can also run the monitor in background mode to log performance data to a CSV file:
 
 ```bash
-python optimizer.py --mode aggressive --target "cyberpunk2077.exe"
+python main.py --log --output ./logs/session_01.csv
 ```
-
-The tool will output performance snapshots directly to the console and generate a `session_log.csv` upon exit.
-
-## Contributing
-Contributions are welcome. Please open an issue to discuss proposed enhancements before submitting a pull request.
 
 ## License
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
