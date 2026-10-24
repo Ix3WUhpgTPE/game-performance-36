@@ -1,41 +1,35 @@
-from typing import Union, Optional, Callable
-
-Numeric = Union[int, float]
-
-def frame_rate_cap(limit: Numeric) -> Callable[[Numeric], Numeric]:
-    """
-    factory for strict frame rate bounding.
-    returns a function that clamps input to a performance-friendly range.
-    """
-    def validator(fps: Numeric) -> Numeric:
-        return min(max(0, fps), limit)
-    return validator
-
-def validate_latency(ms: Numeric, threshold: Numeric = 50.0) -> bool:
-    """
-    check against input lag thresholds.
-    returns true if latency is within the acceptable gaming window.
-    """
-    return ms <= threshold
-
-def sanitize_config_value(value: Optional[str], default: str = "off") -> str:
-    """
-    string normalization for game settings.
-    ensures user inputs conform to expected toggle states.
-    """
-    allowed = {"on", "off", "ultra", "low"}
-    clean_val = str(value).lower() if value else ""
-    return clean_val if clean_val in allowed else default
+import functools
+import time
+from typing import Callable, Any
 
 class PerformanceGuard:
-    """
-    context manager for tracking performance metrics.
-    """
-    def __init__(self, target: str):
-        self.target = target
+    """Cache-based execution dampener for high-frequency game logic."""
+    def __init__(self, limit: float = 0.016):
+        self.limit = limit
+        self.last_run = 0.0
+        self.cache: dict[tuple, Any] = {}
 
-    def __enter__(self) -> None:
-        pass
+    def __call__(self, func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            now = time.perf_counter()
+            state_key = (args, tuple(kwargs.items()))
+            
+            if now - self.last_run < self.limit:
+                return self.cache.get(state_key)
+            
+            result = func(*args, **kwargs)
+            self.cache[state_key] = result
+            self.last_run = now
+            return result
+        return wrapper
 
-    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
-        pass
+@PerformanceGuard(limit=0.033)
+def validate_entity_physics(entity_id: int, delta: float) -> bool:
+    """Simulated expensive physics bounding box validation."""
+    # Perform complex geometry check
+    return (entity_id % 7 == 0) and (delta > 0)
+
+def sanitize_input_stream(data: list[float]) -> list[float]:
+    """Optimized filtering using generator expressions for minimal allocation."""
+    return [round(x, 4) for x in data if 0.0 <= x <= 1.0]
