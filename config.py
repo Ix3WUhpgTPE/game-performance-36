@@ -1,31 +1,35 @@
-from typing import Dict, Any, Final
-from dataclasses import dataclass
+import os
+import json
+from typing import Any, Dict
 
-@dataclass(frozen=True)
 class GameConfig:
-    """Immutable performance parameters for game-performance-36."""
-    fps_cap: int
-    render_scale: float
-    enable_vsync: bool
-
-def get_default_settings() -> Dict[str, Any]:
-    """Generates a dict of high-performance preset configurations."""
-    return {
-        "ultra_perf": GameConfig(fps_cap=144, render_scale=0.75, enable_vsync=False),
-        "cinematic": GameConfig(fps_cap=60, render_scale=1.0, enable_vsync=True)
+    DEFAULT_SETTINGS = {
+        "frame_rate_cap": 144,
+        "vsync": True,
+        "resolution": [1920, 1080],
+        "graphics_preset": "ultra"
     }
 
-class PerformanceRegistry:
-    """Registry for dynamic runtime performance tweaking."""
-    def __init__(self) -> None:
-        self._cache: Dict[str, GameConfig] = get_default_settings()
+    def __init__(self, path: str = "settings.json"):
+        self.path = path
+        self.data = self._load_data()
 
-    def update_profile(self, name: str, config: GameConfig) -> None:
-        """Injects a custom performance profile into the registry."""
-        self._cache[name] = config
+    def _load_data(self) -> Dict[str, Any]:
+        if not os.path.exists(self.path):
+            return self.DEFAULT_SETTINGS
+        try:
+            with open(self.path, "r") as f:
+                loaded = json.load(f)
+            return {**self.DEFAULT_SETTINGS, **loaded}
+        except (json.JSONDecodeError, IOError):
+            return self.DEFAULT_SETTINGS
 
-    def fetch_profile(self, name: str) -> GameConfig:
-        """Retrieves requested performance profile by string key."""
-        return self._cache.get(name, self._cache["ultra_perf"])
+    def get(self, key: str) -> Any:
+        return self.data.get(key, self.DEFAULT_SETTINGS.get(key))
 
-GLOBAL_CONFIG: Final = PerformanceRegistry()
+    def __getattr__(self, name: str) -> Any:
+        return self.get(name)
+
+def initialize_game_config() -> GameConfig:
+    instance = GameConfig()
+    return instance
