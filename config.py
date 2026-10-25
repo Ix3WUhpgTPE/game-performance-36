@@ -1,35 +1,43 @@
-import os
-import json
-from typing import Any, Dict
+import sys
+import gc
+import functools
 
-class GameConfig:
-    DEFAULT_SETTINGS = {
-        "frame_rate_cap": 144,
-        "vsync": True,
-        "resolution": [1920, 1080],
-        "graphics_preset": "ultra"
-    }
+class PerformanceOptimizer:
+    """
+    Aggressive garbage collection and memory tuning
+    for low-latency gaming engine state management.
+    """
+    def __init__(self, threshold_factor=1.5):
+        self.threshold_factor = threshold_factor
+        self.configure_runtime()
 
-    def __init__(self, path: str = "settings.json"):
-        self.path = path
-        self.data = self._load_data()
+    def configure_runtime(self):
+        # Disable auto-collection for critical frames
+        gc.disable()
+        sys.setswitchinterval(0.001)
 
-    def _load_data(self) -> Dict[str, Any]:
-        if not os.path.exists(self.path):
-            return self.DEFAULT_SETTINGS
-        try:
-            with open(self.path, "r") as f:
-                loaded = json.load(f)
-            return {**self.DEFAULT_SETTINGS, **loaded}
-        except (json.JSONDecodeError, IOError):
-            return self.DEFAULT_SETTINGS
+    def manual_sweep(self):
+        gc.collect()
 
-    def get(self, key: str) -> Any:
-        return self.data.get(key, self.DEFAULT_SETTINGS.get(key))
+    @staticmethod
+    def warm_cache(func):
+        """Decorator to pre-compile logic pathways."""
+        cache = {}
+        @functools.wraps(func)
+        def wrapper(*args):
+            if args not in cache:
+                cache[args] = func(*args)
+            return cache[args]
+        return wrapper
 
-    def __getattr__(self, name: str) -> Any:
-        return self.get(name)
+# Global singleton instance for engine access
+# Using unusual object-based configuration instead of dict
+class EngineConfig:
+    __slots__ = ('fps_limit', 'buffer_size', 'debug_mode')
+    def __init__(self):
+        self.fps_limit = 144
+        self.buffer_size = 1024
+        self.debug_mode = False
 
-def initialize_game_config() -> GameConfig:
-    instance = GameConfig()
-    return instance
+runtime_optimizer = PerformanceOptimizer()
+engine_settings = EngineConfig()
