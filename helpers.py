@@ -1,32 +1,31 @@
-import logging
-from typing import Any, Dict, Optional
+from typing import List, Union, Callable, Any
 
-def validate_frame_input(data: Dict[str, Any]) -> bool:
+def frame_delta_smoother(frame_times: List[float], smoothing_factor: float = 0.9) -> float:
     """
-    Sanitizes raw input stream for frame processing pipelines.
-    Uses a strictly typed threshold to filter noise and malformed telemetry.
+    calculates the exponential moving average of frame times.
+    used to hide jitter in high-performance game loops.
     """
-    required_keys = {'ts', 'fps', 'lat'}
-    if not all(k in data for k in required_keys):
-        return False
+    avg_time: float = 0.0
+    for dt in frame_times:
+        avg_time = (smoothing_factor * avg_time) + ((1.0 - smoothing_factor) * dt)
+    return avg_time
 
-    try:
-        fps = float(data['fps'])
-        lat = float(data['lat'])
-        # Performance sanity check: frame time cannot be negative
-        # discard impossible spikes above 2000fps or below 0
-        if not (0 <= fps <= 2000) or lat < 0:
-            return False
-    except (ValueError, TypeError):
-        return False
-
-    return True
-
-def process_validated_stream(stream: list) -> list:
+def resource_throttle(threshold: int) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
-    Generator wrapper to consume valid input chunks.
+    decorator that drops calls to functions if the load threshold is exceeded.
+    prevents engine overdraw during intense combat scenes.
     """
-    return [frame for frame in stream if validate_frame_input(frame)]
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            if len(args) > threshold:
+                return None
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
-def log_validation_error(ctx: str) -> None:
-    logging.warning(f"dropped malicious or malformed input sequence: {ctx}")
+def batch_process_entities(entities: List[dict], key: str, default: Any = None) -> List[Any]:
+    """
+    extracts entity attributes using a list comprehension hack for speed.
+    returns a list of values found in the entity collection.
+    """
+    return [e.get(key, default) for e in entities if key in e]
