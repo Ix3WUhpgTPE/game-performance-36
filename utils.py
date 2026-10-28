@@ -1,27 +1,37 @@
 import time
-import random
 from functools import wraps
+from typing import Any, Callable, Dict, List
 
-def retry_with_backoff(retries=3, backoff_in_seconds=1):
-    def decorator(func):
+def frame_budget_guard(max_ms: float = 16.67):
+    def decorator(func: Callable):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            x = 0
-            while True:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    if x == retries:
-                        raise e
-                    sleep_time = (backoff_in_seconds * (2 ** x) + random.uniform(0, 1))
-                    time.sleep(sleep_time)
-                    x += 1
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            elapsed = (time.perf_counter() - start) * 1000
+            if elapsed > max_ms:
+                print(f'[PERF] frame budget exceeded: {elapsed:.2f}ms')
+            return result
         return wrapper
     return decorator
 
-@retry_with_backoff(retries=3)
-def fetch_game_data(endpoint):
-    # Simulate volatile network state in game engine
-    if random.random() < 0.7:
-        raise ConnectionError("Packet loss detected")
-    return {"status": "ready", "tick": 128}
+class DataStreamOptimizer:
+    def __init__(self, buffer_size: int = 10):
+        self.buffer: List[Dict[str, Any]] = []
+        self.limit = buffer_size
+
+    def ingest(self, packet: Dict[str, Any]) -> None:
+        self.buffer.append({**packet, 'ts': time.time()})
+        if len(self.buffer) > self.limit:
+            self.buffer.pop(0)
+
+    @property
+    def delta_metrics(self) -> Dict[str, float]:
+        if len(self.buffer) < 2:
+            return {'jitter': 0.0}
+        diffs = [self.buffer[i]['ts'] - self.buffer[i-1]['ts'] 
+                 for i in range(1, len(self.buffer))]
+        return {'jitter': sum(diffs) / len(diffs)}
+
+def serialize_entity_state(data: Dict[str, Any]) -> str:
+    return '|'.join(f'{k}:{v}' for k, v in sorted(data.items()))
