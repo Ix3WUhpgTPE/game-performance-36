@@ -1,31 +1,39 @@
-from typing import List, Union, Callable, Any
+import gc
+import time
+import logging
+from typing import Callable, Any
 
-def frame_delta_smoother(frame_times: List[float], smoothing_factor: float = 0.9) -> float:
-    """
-    calculates the exponential moving average of frame times.
-    used to hide jitter in high-performance game loops.
-    """
-    avg_time: float = 0.0
-    for dt in frame_times:
-        avg_time = (smoothing_factor * avg_time) + ((1.0 - smoothing_factor) * dt)
-    return avg_time
+logger = logging.getLogger('game-performance-36')
 
-def resource_throttle(threshold: int) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """
-    decorator that drops calls to functions if the load threshold is exceeded.
-    prevents engine overdraw during intense combat scenes.
-    """
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            if len(args) > threshold:
-                return None
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
+class MemoryOrchestrator:
+    """Aggressive memory reclamation for frame-time optimization."""
+    @staticmethod
+    def sweep_stale_assets(threshold_mb: float = 512.0) -> int:
+        gc.collect()
+        return gc.get_count()[0]
 
-def batch_process_entities(entities: List[dict], key: str, default: Any = None) -> List[Any]:
-    """
-    extracts entity attributes using a list comprehension hack for speed.
-    returns a list of values found in the entity collection.
-    """
-    return [e.get(key, default) for e in entities if key in e]
+def benchmark_execution(func: Callable) -> Callable:
+    """Decorator for tracking frame-budget performance impacts."""
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        elapsed = (time.perf_counter() - start_time) * 1000
+        if elapsed > 16.6:
+            logger.warning(f"Frame-budget overrun: {func.__name__} took {elapsed:.2f}ms")
+        return result
+    return wrapper
+
+class PerformanceRegistry:
+    def __init__(self):
+        self._tasks = {}
+
+    def register_deferred_task(self, name: str, callback: Callable):
+        self._tasks[name] = callback
+
+    def flush_all(self):
+        for name, task in self._tasks.items():
+            try:
+                task()
+            except Exception as e:
+                logger.error(f"Cleanup failure in {name}: {e}")
+        self._tasks.clear()
