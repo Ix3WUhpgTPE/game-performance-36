@@ -1,39 +1,33 @@
-import gc
 import time
-import logging
-from typing import Callable, Any
+import functools
+import random
 
-logger = logging.getLogger('game-performance-36')
+def retry_network_call(max_retries=3, backoff_factor=0.5):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            while attempts < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    attempts += 1
+                    if attempts == max_retries:
+                        raise e
+                    sleep_time = backoff_factor * (2 ** (attempts - 1)) + random.uniform(0, 0.1)
+                    time.sleep(sleep_time)
+        return wrapper
+    return decorator
 
-class MemoryOrchestrator:
-    """Aggressive memory reclamation for frame-time optimization."""
-    @staticmethod
-    def sweep_stale_assets(threshold_mb: float = 512.0) -> int:
-        gc.collect()
-        return gc.get_count()[0]
-
-def benchmark_execution(func: Callable) -> Callable:
-    """Decorator for tracking frame-budget performance impacts."""
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        start_time = time.perf_counter()
-        result = func(*args, **kwargs)
-        elapsed = (time.perf_counter() - start_time) * 1000
-        if elapsed > 16.6:
-            logger.warning(f"Frame-budget overrun: {func.__name__} took {elapsed:.2f}ms")
-        return result
-    return wrapper
-
-class PerformanceRegistry:
-    def __init__(self):
-        self._tasks = {}
-
-    def register_deferred_task(self, name: str, callback: Callable):
-        self._tasks[name] = callback
-
-    def flush_all(self):
-        for name, task in self._tasks.items():
-            try:
-                task()
-            except Exception as e:
-                logger.error(f"Cleanup failure in {name}: {e}")
-        self._tasks.clear()
+def async_retry(max_retries=3):
+    def decorator(func):
+        async def wrapper(*args, **kwargs):
+            for i in range(max_retries):
+                try:
+                    return await func(*args, **kwargs)
+                except Exception as e:
+                    if i == max_retries - 1:
+                        raise e
+                    await asyncio.sleep(1)
+        return wrapper
+    return decorator
