@@ -1,38 +1,35 @@
-import logging
-import os
-from logging.handlers import RotatingFileHandler
+import time
+import collections
+import functools
 
-def get_performance_logger(name: str = 'game_perf'):
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+class PerformanceLogger:
+    _history = collections.deque(maxlen=1000)
 
-    if not logger.handlers:
-        log_dir = 'logs'
-        os.makedirs(log_dir, exist_ok=True)
-        log_path = os.path.join(log_dir, 'game-performance-36.log')
+    def __init__(self, threshold_ms=16.6):
+        self.threshold = threshold_ms
 
-        # using unusual size-based rolling strategy for high throughput
-        handler = RotatingFileHandler(
-            log_path,
-            maxBytes=5 * 1024 * 1024,
-            backupCount=3,
-            encoding='utf-8'
-        )
+    def __call__(self, func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            duration = (time.perf_counter() - start) * 1000
+            if duration > self.threshold:
+                self._history.append((func.__name__, duration))
+            return result
+        return wrapper
 
-        # custom formatter mimicking game engine console output
-        formatter = logging.Formatter(
-            '[%(asctime)s] | %(levelname)s | %(name)s: %(message)s',
-            datefmt='%H:%M:%S'
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+    @classmethod
+    def get_bottlenecks(cls):
+        if not cls._history:
+            return {}
+        stats = collections.defaultdict(list)
+        for name, duration in cls._history:
+            stats[name].append(duration)
+        return {k: sum(v)/len(v) for k, v in stats.items()}
 
-        # add stdout handler for active dev debugging sessions
-        console = logging.StreamHandler()
-        console.setFormatter(formatter)
-        logger.addHandler(console)
+    @staticmethod
+    def flush_metrics():
+        PerformanceLogger._history.clear()
 
-    return logger
-
-# global engine logger instance
-perf_logger = get_performance_logger()
+perf_monitor = PerformanceLogger()
