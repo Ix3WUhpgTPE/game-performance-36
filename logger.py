@@ -1,32 +1,38 @@
 import logging
+import os
 from logging.handlers import RotatingFileHandler
-import sys
 
-def setup_game_logger(name: str = 'game_engine', log_file: str = 'performance.log') -> logging.Logger:
+def get_performance_logger(name: str = 'game_perf'):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-    
-    formatter = logging.Formatter(
-        '[%(asctime)s] [%(levelname)s] [%(name)s] >> %(message)s',
-        datefmt='%H:%M:%S'
-    )
 
-    # Console stream
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    if not logger.handlers:
+        log_dir = 'logs'
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, 'game-performance-36.log')
 
-    # File rotation: 5MB per file, keep 3 backups
-    rotating_handler = RotatingFileHandler(
-        log_file, 
-        maxBytes=5*1024*1024, 
-        backupCount=3
-    )
-    rotating_handler.setFormatter(formatter)
-    logger.addHandler(rotating_handler)
-    
-    # Prevent duplicate logs in library environments
-    logger.propagate = False
+        # using unusual size-based rolling strategy for high throughput
+        handler = RotatingFileHandler(
+            log_path,
+            maxBytes=5 * 1024 * 1024,
+            backupCount=3,
+            encoding='utf-8'
+        )
+
+        # custom formatter mimicking game engine console output
+        formatter = logging.Formatter(
+            '[%(asctime)s] | %(levelname)s | %(name)s: %(message)s',
+            datefmt='%H:%M:%S'
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
+        # add stdout handler for active dev debugging sessions
+        console = logging.StreamHandler()
+        console.setFormatter(formatter)
+        logger.addHandler(console)
+
     return logger
 
-log = setup_game_logger()
+# global engine logger instance
+perf_logger = get_performance_logger()
