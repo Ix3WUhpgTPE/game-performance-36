@@ -1,53 +1,36 @@
+import time
 import collections
-import math
-from typing import List, Generator, Dict, Any
+from typing import Any, Dict, List, Callable
 
+class FrameDeltaBuffer:
+    def __init__(self, capacity: int = 60):
+        self.capacity = capacity
+        self.buffer = collections.deque(maxlen=capacity)
 
-class FramePacingStreamProcessor:
-    """Stream processor using log-bucketed frame pacing metrics."""
+    def ingest(self, metric: float) -> None:
+        self.buffer.append((time.perf_counter(), metric))
 
-    def __init__(self, target_fps: float = 60.0, window_size: int = 120):
-        self.target_frame_time = 1000.0 / target_fps
-        self.window_size = window_size
-        self._history = collections.deque(maxlen=window_size)
-        self._stutter_buckets = [0] * 8
+    def get_jitter(self) -> float:
+        if len(self.buffer) < 2:
+            return 0.0
+        diffs = [self.buffer[i][0] - self.buffer[i-1][0] for i in range(1, len(self.buffer))]
+        return max(diffs) - min(diffs)
 
-    def _quantize_stutter(self, delta_ms: float) -> int:
-        ratio = delta_ms / max(self.target_frame_time, 0.001)
-        if ratio <= 1.05:
-            return 0
-        return min(7, int(math.log2(ratio - 0.05)) + 1)
+    def summarize(self) -> Dict[str, float]:
+        if not self.buffer:
+            return {"avg": 0.0, "max": 0.0}
+        vals = [v[1] for v in self.buffer]
+        return {"avg": sum(vals) / len(vals), "max": max(vals)}
 
-    def ingest_frame_stream(self, frame_times: List[float]) -> Generator[Dict[str, Any], None, None]:
-        """Processes frame time samples and yields real-time stutter telemetry."""
-        for frame_ms in frame_times:
-            self._history.append(frame_ms)
-            severity = self._quantize_stutter(frame_ms)
-            self._stutter_buckets[severity] += 1
+def throttle_events(func: Callable, interval: float = 0.1):
+    last_called = 0.0
+    def wrapper(*args, **kwargs):
+        nonlocal last_called
+        now = time.perf_counter()
+        if now - last_called > interval:
+            last_called = now
+            return func(*args, **kwargs)
+    return wrapper
 
-            if len(self._history) < 10:
-                continue
-
-            sorted_frames = sorted(self._history)
-            p1_idx = max(0, int(len(sorted_frames) * 0.01))
-            p01_idx = max(0, int(len(sorted_frames) * 0.001))
-
-            avg_fps = 1000.0 / (sum(self._history) / len(self._history))
-            low_1_fps = 1000.0 / sorted_frames[-p1_idx - 1]
-            low_01_fps = 1000.0 / sorted_frames[-p01_idx - 1]
-
-            bitmask = sum(1 << i for i, count in enumerate(self._stutter_buckets) if count > 0)
-
-            yield {
-                "current_fps": round(1000.0 / max(frame_ms, 0.001), 2),
-                "avg_fps": round(avg_fps, 2),
-                "1_percent_low": round(low_1_fps, 2),
-                "0_1_percent_low": round(low_01_fps, 2),
-                "stutter_profile": f"0x{bitmask:02X}",
-                "is_smooth": severity == 0
-            }
-
-
-def process_telemetry_batch(raw_samples: List[float], target_fps: float = 144.0) -> List[Dict[str, Any]]:
-    processor = FramePacingStreamProcessor(target_fps=target_fps)
-    return list(processor.ingest_frame_stream(raw_samples))
+def sanitize_packet(data: Dict[str, Any]) -> Dict[str, Any]:
+    return {str(k): v for k, v in data.items() if v is not None}
