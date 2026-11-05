@@ -1,41 +1,48 @@
 import time
+import random
 import functools
-from typing import Callable, Any
+import logging
+from typing import Callable, Any, Type, Tuple
 
-def throttled_frame_rate(fps: int = 60) -> Callable:
+logger = logging.getLogger("game_perf.net")
+
+class NetworkRespawnError(Exception):
+    """Raised when all packet respawn attempts fail."""
+    pass
+
+def retry_network_op(
+    max_respawns: int = 3,
+    base_ping_ms: float = 50.0,
+    backoff_multiplier: float = 2.0,
+    allowed_exceptions: Tuple[Type[Exception], ...] = (Exception,)
+) -> Callable:
+    """
+    Decorator executing network operations with a gaming-inspired
+    ping jitter exponential backoff strategy upon packet loss.
+    """
     def decorator(func: Callable) -> Callable:
-        interval = 1.0 / fps
-        last_call = [0.0]
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            now = time.perf_counter()
-            elapsed = now - last_call[0]
-            if elapsed >= interval:
-                last_call[0] = now
-                return func(*args, **kwargs)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            respawn_count = 0
+            current_delay = base_ping_ms / 1000.0
+
+            while True:
+                try:
+                    return func(*args, **kwargs)
+                except allowed_exceptions as err:
+                    respawn_count += 1
+                    if respawn_count > max_respawns:
+                        logger.error(f"[NetDesync] Call to {func.__name__} dropped after {max_respawns} retries: {err}")
+                        raise NetworkRespawnError(f"Server connection lost in {func.__name__}: {err}") from err
+
+                    jitter = random.uniform(0.8, 1.4)
+                    sleep_time = current_delay * jitter
+                    logger.warning(
+                        f"[PacketLoss] Retry {respawn_count}/{max_respawns} for {func.__name__}. "
+                        f"Respawning payload in {sleep_time * 1000:.1f}ms..."
+                    )
+                    time.sleep(sleep_time)
+                    current_delay *= backoff_multiplier
+
         return wrapper
     return decorator
-
-def memory_footprint_monitor(func: Callable) -> Callable:
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        import sys
-        result = func(*args, **kwargs)
-        size = sys.getsizeof(result) if result is not None else 0
-        print(f'[PERF] function {func.__name__} returned {size} bytes')
-        return result
-    return wrapper
-
-def safe_vector_normalize(vector: tuple[float, ...]) -> tuple[float, ...]:
-    magnitude = sum(x**2 for x in vector)**0.5
-    if magnitude == 0: return tuple(0.0 for _ in vector)
-    return tuple(x / magnitude for x in vector)
-
-def memoize_asset_path(func: Callable) -> Callable:
-    cache = {}
-    @functools.wraps(func)
-    def wrapper(*args) -> str:
-        if args not in cache:
-            cache[args] = func(*args)
-        return cache[args]
-    return wrapper
