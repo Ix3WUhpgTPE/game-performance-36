@@ -1,37 +1,41 @@
 import time
-from functools import wraps
-from typing import Any, Callable, Dict, List
+import functools
+from typing import Callable, Any
 
-def frame_budget_guard(max_ms: float = 16.67):
-    def decorator(func: Callable):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-            elapsed = (time.perf_counter() - start) * 1000
-            if elapsed > max_ms:
-                print(f'[PERF] frame budget exceeded: {elapsed:.2f}ms')
-            return result
+def throttled_frame_rate(fps: int = 60) -> Callable:
+    def decorator(func: Callable) -> Callable:
+        interval = 1.0 / fps
+        last_call = [0.0]
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            now = time.perf_counter()
+            elapsed = now - last_call[0]
+            if elapsed >= interval:
+                last_call[0] = now
+                return func(*args, **kwargs)
         return wrapper
     return decorator
 
-class DataStreamOptimizer:
-    def __init__(self, buffer_size: int = 10):
-        self.buffer: List[Dict[str, Any]] = []
-        self.limit = buffer_size
+def memory_footprint_monitor(func: Callable) -> Callable:
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        import sys
+        result = func(*args, **kwargs)
+        size = sys.getsizeof(result) if result is not None else 0
+        print(f'[PERF] function {func.__name__} returned {size} bytes')
+        return result
+    return wrapper
 
-    def ingest(self, packet: Dict[str, Any]) -> None:
-        self.buffer.append({**packet, 'ts': time.time()})
-        if len(self.buffer) > self.limit:
-            self.buffer.pop(0)
+def safe_vector_normalize(vector: tuple[float, ...]) -> tuple[float, ...]:
+    magnitude = sum(x**2 for x in vector)**0.5
+    if magnitude == 0: return tuple(0.0 for _ in vector)
+    return tuple(x / magnitude for x in vector)
 
-    @property
-    def delta_metrics(self) -> Dict[str, float]:
-        if len(self.buffer) < 2:
-            return {'jitter': 0.0}
-        diffs = [self.buffer[i]['ts'] - self.buffer[i-1]['ts'] 
-                 for i in range(1, len(self.buffer))]
-        return {'jitter': sum(diffs) / len(diffs)}
-
-def serialize_entity_state(data: Dict[str, Any]) -> str:
-    return '|'.join(f'{k}:{v}' for k, v in sorted(data.items()))
+def memoize_asset_path(func: Callable) -> Callable:
+    cache = {}
+    @functools.wraps(func)
+    def wrapper(*args) -> str:
+        if args not in cache:
+            cache[args] = func(*args)
+        return cache[args]
+    return wrapper
