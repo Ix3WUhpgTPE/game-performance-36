@@ -1,17 +1,17 @@
 # game-performance-36
 
-`game-performance-36` is a lightweight Python toolkit designed to monitor and optimize system resource allocation for high-performance gaming. It identifies bottlenecks in CPU scheduling and memory throughput to ensure stable frame rates during intensive sessions.
+`game-performance-36` is a lightweight Python toolkit designed to monitor and optimize system resource allocation for high-demand gaming sessions. It provides real-time telemetry to help developers and power users identify bottlenecking processes and thermal throttling issues.
 
 ## Features
 
-*   **Real-time Telemetry:** Tracks CPU core utilization and GPU temperature trends with sub-second polling rates.
-*   **Process Prioritization:** Automatically elevates the priority of active game executables to minimize input latency.
-*   **Background Bloat Suppression:** Temporarily suspends resource-heavy non-gaming processes to free up RAM.
-*   **Hardware-Aware Profiling:** Generates optimized configuration reports based on your specific GPU/CPU architecture.
+*   **Real-time Metrics:** Tracks CPU/GPU utilization, RAM frequency, and frame-time consistency with sub-second polling rates.
+*   **Process Affinity Tuning:** Automatically assigns high-priority execution threads to gaming processes to minimize stuttering.
+*   **Thermal Guard:** Triggers automated warnings or custom scripts when GPU junction temperatures exceed defined safety thresholds.
+*   **Performance Profiling:** Exports session data into structured CSV logs for comparative analysis of hardware configurations.
 
 ## Installation
 
-Ensure you have Python 3.8+ installed. Clone the repository and install the dependencies:
+Ensure you have Python 3.9+ installed. Clone the repository and install the required dependencies:
 
 ```bash
 git clone https://github.com/Developer/game-performance-36.git
@@ -19,23 +19,30 @@ cd game-performance-36
 pip install -r requirements.txt
 ```
 
+*Note: Administrative/Sudo privileges are required to modify process affinity settings.*
+
 ## Usage
 
-To start the monitoring engine and apply default optimizations, run the script with elevated privileges:
+To start the monitor in background mode with default settings, run the following command:
 
 ```bash
-# Run with administrative/sudo permissions for process management
-sudo python main.py --mode optimize --target "game_executable_name"
+python main.py --monitor --log-level=INFO
 ```
 
-You can also run the monitor in background mode to log performance data to a CSV file:
+You can specify a target process name to isolate performance data:
 
 ```bash
-python main.py --log --output ./logs/session_01.csv
+python main.py --target "eldenring.exe" --threshold 85
+```
+
+For a full list of configuration parameters, run:
+
+```bash
+python main.py --help
 ```
 
 ## License
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Distributed under the MIT License. See `LICENSE` for more information.
