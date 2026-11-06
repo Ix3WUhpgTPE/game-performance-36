@@ -3,35 +3,29 @@ import os
 from typing import Any, Dict
 
 class ConfigLoader:
-    def __init__(self, path: str = 'settings.json', defaults: Dict[str, Any] = None):
+    def __init__(self, path: str = 'settings.json'):
         self.path = path
-        self.defaults = defaults or {}
-        self.data = self._initialize()
+        self.defaults = {
+            'fps_limit': 144,
+            'vsync': True,
+            'resolution': [1920, 1080],
+            'debug_mode': False
+        }
 
-    def _initialize(self) -> Dict[str, Any]:
+    def __getitem__(self, key: str) -> Any:
+        return self.load().get(key, self.defaults.get(key))
+
+    def load(self) -> Dict[str, Any]:
         if not os.path.exists(self.path):
             return self.defaults
         try:
             with open(self.path, 'r') as f:
-                loaded = json.load(f)
-                return {**self.defaults, **loaded}
+                return {**self.defaults, **json.load(f)}
         except (json.JSONDecodeError, IOError):
             return self.defaults
 
-    def get(self, key: str, fallback: Any = None) -> Any:
-        return self.data.get(key, fallback)
+    def save(self, data: Dict[str, Any]) -> None:
+        with open(self.path, 'w') as f:
+            json.dump(data, f, indent=4)
 
-    def __getitem__(self, key: str) -> Any:
-        return self.data[key]
-
-    def reload(self) -> None:
-        self.data = self._initialize()
-
-def get_game_config():
-    defaults = {
-        "fps_limit": 144,
-        "vsync": True,
-        "render_scale": 1.0,
-        "debug_mode": False
-    }
-    return ConfigLoader('config.json', defaults=defaults)
+config = ConfigLoader()
