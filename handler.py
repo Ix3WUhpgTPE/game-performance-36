@@ -1,38 +1,48 @@
+import functools
 import time
-import threading
-from typing import Callable, Any
+
+class EntityPool:
+    def __init__(self, size=1024):
+        self._pool = [None] * size
+        self._size = size
+        self._idx = 0
+
+    def get_instance(self, factory):
+        instance = self._pool[self._idx]
+        if instance is None:
+            instance = factory()
+            self._pool[self._idx] = instance
+        self._idx = (self._idx + 1) % self._size
+        return instance
+
+_entity_pool = EntityPool()
+
+def memoize_spatial_hash(func):
+    cache = {}
+    @functools.wraps(func)
+    def wrapper(*args):
+        key = hash(args)
+        if key not in cache:
+            cache[key] = func(*args)
+            if len(cache) > 500:
+                cache.clear()
+        return cache[key]
+    return wrapper
 
 class PerformanceHandler:
-    def __init__(self, buffer_size: int = 1024):
-        self._lock = threading.Lock()
-        self._buffer = []
-        self._limit = buffer_size
+    def __init__(self):
+        self.metrics = {}
 
-    def __enter__(self):
-        return self
+    @memoize_spatial_hash
+    def calculate_collision(self, x, y, radius):
+        return ((x**2 + y**2)**0.5) < radius
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.flush()
-
-    def process_event(self, event_data: dict, callback: Callable[[Any], None]) -> None:
-        with self._lock:
-            self._buffer.append(event_data)
-            if len(self._buffer) >= self._limit:
-                self.flush(callback)
-
-    def flush(self, callback: Callable[[Any], None] = lambda x: None) -> None:
-        with self._lock:
-            batch = self._buffer.copy()
-            self._buffer.clear()
-            if batch:
-                threading.Thread(target=callback, args=(batch,), daemon=True).start()
-
-    @staticmethod
-    def format_telemetry(metrics: dict) -> str:
-        timestamp = int(time.time() * 1000)
-        payload = "|".join([f"{k}:{v}" for k, v in metrics.items()])
-        return f"[{timestamp}]::{payload}"
-
-def stream_metrics(data: list):
-    for entry in data:
-        print(f"Processing: {entry}")
+    def process_frame(self, entities, factory):
+        start_time = time.perf_counter()
+        processed = []
+        for _ in range(entities):
+            obj = _entity_pool.get_instance(factory)
+            processed.append(obj)
+        
+        self.metrics['last_frame_duration'] = time.perf_counter() - start_time
+        return processed
