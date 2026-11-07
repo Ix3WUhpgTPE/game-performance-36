@@ -1,30 +1,33 @@
-import logging
-from logging.handlers import RotatingFileHandler
-import os
+import time
+import collections
+from functools import wraps
 
 class PerformanceLogger:
-    def __init__(self, log_path='logs/game_perf.log'):
-        os.makedirs(os.path.dirname(log_path), exist_ok=True)
-        self.logger = logging.getLogger('perf_metrics')
-        self.logger.setLevel(logging.DEBUG)
-        
-        formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
-        
-        # Creative spin: rotating based on high-frequency frame drops detection
-        handler = RotatingFileHandler(
-            log_path, 
-            maxBytes=5*1024*1024, 
-            backupCount=3
-        )
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
-        
-    def get_logger(self):
-        return self.logger
+    def __init__(self, limit=100):
+        self.history = collections.deque(maxlen=limit)
 
-def setup_game_logger():
-    return PerformanceLogger().get_logger()
+    def track(self, func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            duration = time.perf_counter() - start
+            self.history.append((func.__name__, duration))
+            if duration > 0.016:  # 60fps budget
+                self._report_bottleneck(func.__name__, duration)
+            return result
+        return wrapper
 
-if __name__ == '__main__':
-    log = setup_game_logger()
-    log.info('performance tracking module initialized')
+    def _report_bottleneck(self, name, duration):
+        # Unusual: dynamic throttle based on recent frequency
+        if len([h for h in self.history if h[0] == name]) > 5:
+            print(f"[PERF] Critical bottleneck in {name}: {duration:.4f}s")
+
+    def get_stats(self):
+        return list(self.history)
+
+# Singleton for global performance monitoring
+perf_monitor = PerformanceLogger()
+
+def monitor_performance(func):
+    return perf_monitor.track(func)
