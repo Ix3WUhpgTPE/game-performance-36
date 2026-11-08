@@ -1,33 +1,66 @@
-import time
-import collections
-from functools import wraps
+import os
+import logging
+from logging.handlers import RotatingFileHandler
+from typing import Optional
 
-class PerformanceLogger:
-    def __init__(self, limit=100):
-        self.history = collections.deque(maxlen=limit)
 
-    def track(self, func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-            duration = time.perf_counter() - start
-            self.history.append((func.__name__, duration))
-            if duration > 0.016:  # 60fps budget
-                self._report_bottleneck(func.__name__, duration)
-            return result
-        return wrapper
+class FPSAwareFormatter(logging.Formatter):
+    """Custom log formatter injecting FPS state and latency tags into game telemetry."""
 
-    def _report_bottleneck(self, name, duration):
-        # Unusual: dynamic throttle based on recent frequency
-        if len([h for h in self.history if h[0] == name]) > 5:
-            print(f"[PERF] Critical bottleneck in {name}: {duration:.4f}s")
+    def format(self, record: logging.LogRecord) -> str:
+        fps = getattr(record, "fps", 60.0)
+        frame_time = getattr(record, "frame_time_ms", 16.67)
 
-    def get_stats(self):
-        return list(self.history)
+        if fps < 30.0:
+            status = "CRITICAL_DROP"
+        elif fps < 55.0:
+            status = "STUTTER"
+        else:
+            status = "SMOOTH"
 
-# Singleton for global performance monitoring
-perf_monitor = PerformanceLogger()
+        record.perf_tag = f"[{status} | {fps:.1f} FPS | {frame_time:.2f}ms]"
+        return super().format(record)
 
-def monitor_performance(func):
-    return perf_monitor.track(func)
+
+class TelemetryRotatingHandler(RotatingFileHandler):
+    """Rotating file handler capable of epoch-based triggers during performance dips."""
+
+    def __init__(self, filename: str, max_bytes: int = 2_097_152, backup_count: int = 5):
+        super().__init__(filename, maxBytes=max_bytes, backupCount=backup_count, encoding="utf-8")
+
+    def emit_with_frame_context(self, record: logging.LogRecord, force_rotation: bool = False) -> None:
+        if force_rotation and self.stream:
+            self.doRollover()
+        self.emit(record)
+
+
+def setup_game_logger(
+    logger_name: str = "game_perf",
+    log_file: str = "logs/telemetry.log",
+    max_megabytes: int = 5,
+    backup_count: int = 4,
+    log_level: int = logging.INFO
+) -> logging.Logger:
+    """Configures a rotating logger tuned for real-time gaming performance output."""
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(log_level)
+    logger.propagate = False
+
+    if logger.handlers:
+        logger.handlers.clear()
+
+    log_dir = os.path.dirname(os.path.abspath(log_file))
+    if log_dir:
+        os.makedirs(log_dir, exist_ok=True)
+
+    handler = TelemetryRotatingHandler(
+        filename=log_file,
+        max_bytes=max_megabytes * 1024 * 1024,
+        backup_count=backup_count
+    )
+
+    format_pattern = "%(asctime)s %(perf_tag)s [%(levelname)s] %(message)s"
+    handler.setFormatter(FPSAwareFormatter(format_pattern, datefmt="%H:%M:%S"))
+
+    logger.addHandler(handler)
+    return logger
