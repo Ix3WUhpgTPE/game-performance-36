@@ -1,34 +1,29 @@
-import functools
-import time
+import re
+from typing import Any, Dict, List
 
-class PerformanceCache:
-    def __init__(self, capacity=128):
-        self.capacity = capacity
-        self.store = {}
-        self.order = []
+class GameSchemaValidator:
+    def __init__(self, required_keys: List[str]):
+        self.required_keys = required_keys
+        self.pattern = re.compile(r'^[a-zA-Z0-9_]{3,20}$')
 
-    def __call__(self, func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            key = (args, frozenset(kwargs.items()))
-            if key in self.store:
-                return self.store[key]
-            result = func(*args, **kwargs)
-            if len(self.store) >= self.capacity:
-                del self.store[self.order.pop(0)]
-            self.store[key] = result
-            self.order.append(key)
-            return result
-        return wrapper
+    def validate_entity(self, data: Dict[str, Any]) -> bool:
+        if not all(key in data for key in self.required_keys):
+            return False
+        return all(isinstance(v, str) and self.pattern.match(v) for v in data.values())
 
-@PerformanceCache(capacity=256)
-def validate_entity_physics(entity_id: int, frame_delta: float) -> bool:
-    # Simulate high-latency geometric intersection check
-    start = time.perf_counter()
-    while time.perf_counter() - start < 0.001:
-        pass
-    return entity_id % 7 != 0
+def sanitize_input(user_input: str) -> str:
+    return ''.join(char for char in user_input if char.isalnum())
 
-def validate_game_state(entities: list) -> bool:
-    results = [validate_entity_physics(e['id'], e['dt']) for e in entities]
-    return all(results)
+def check_frame_budget(fps: float, threshold: float = 60.0) -> bool:
+    return fps >= threshold
+
+class PerformanceConstraint:
+    def __init__(self, tolerance: float):
+        self.tolerance = tolerance
+
+    def check(self, val: float) -> bool:
+        return abs(val) < self.tolerance
+
+if __name__ == '__main__':
+    validator = GameSchemaValidator(['id', 'tag'])
+    print(validator.validate_entity({'id': 'p1', 'tag': 'warrior'}))
