@@ -2,32 +2,25 @@ import time
 import functools
 import random
 
-def retry_network_call(max_retries=3, backoff_factor=0.5):
+def retry_network(max_attempts=3, base_delay=1.0):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             attempts = 0
-            while attempts < max_retries:
+            while attempts < max_attempts:
                 try:
                     return func(*args, **kwargs)
                 except (ConnectionError, TimeoutError) as e:
                     attempts += 1
-                    if attempts == max_retries:
+                    if attempts >= max_attempts:
                         raise e
-                    sleep_time = backoff_factor * (2 ** (attempts - 1)) + random.uniform(0, 0.1)
+                    # Exponential backoff with a sprinkle of chaos for game servers
+                    sleep_time = (base_delay * (2 ** (attempts - 1))) + (random.random() * 0.5)
                     time.sleep(sleep_time)
         return wrapper
     return decorator
 
-def async_retry(max_retries=3):
-    def decorator(func):
-        async def wrapper(*args, **kwargs):
-            for i in range(max_retries):
-                try:
-                    return await func(*args, **kwargs)
-                except Exception as e:
-                    if i == max_retries - 1:
-                        raise e
-                    await asyncio.sleep(1)
-        return wrapper
-    return decorator
+def validate_packet(data):
+    if not data or not isinstance(data, dict):
+        raise ValueError('corrupted packet structure')
+    return True
