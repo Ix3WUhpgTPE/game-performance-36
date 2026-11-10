@@ -1,29 +1,25 @@
-import time
-import functools
-from typing import Callable, Any
-
-class NetworkGlitch(Exception):
+class PerformanceException(Exception):
+    """Base exception for game-performance-36."""
     pass
 
-def retry_logic(attempts: int = 3, delay: float = 0.5):
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            last_ex = None
-            for i in range(attempts):
-                try:
-                    return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError, NetworkGlitch) as e:
-                    last_ex = e
-                    if i < attempts - 1:
-                        time.sleep(delay * (2 ** i))
-            raise last_ex
-        return wrapper
-    return decorator
+class ThrottleLimitReached(PerformanceException):
+    """Raised when frame processing hits resource caps.""
+    pass
 
-@retry_logic(attempts=4, delay=0.2)
-def fetch_game_data(endpoint: str):
-    # Simulate volatile gaming server connection
-    if time.time() % 2 > 1:
-        raise NetworkGlitch("packet loss detected")
-    return {"status": "ready", "endpoint": endpoint}
+class MemoryOverflowError(PerformanceException):
+    """Raised when garbage collection cannot clear heap.""
+    pass
+
+class InvalidGameState(PerformanceException):
+    """Raised when the state transition is non-deterministic.""
+    pass
+
+def raise_if_lagging(frame_time: float, threshold: float = 0.016):
+    """Utility for strict frame budget enforcement.""
+    if frame_time > threshold:
+        raise ThrottleLimitReached(f"Frame time {frame_time:.4f}s exceeded budget.")
+
+def validate_heap_usage(current: int, limit: int):
+    """Strict boundary checking for memory safety.""
+    if current >= limit:
+        raise MemoryOverflowError(f"Critical memory usage: {current} bytes.")
