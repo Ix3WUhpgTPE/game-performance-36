@@ -1,29 +1,34 @@
-import re
-from typing import Any, Dict, List
+import logging
+from typing import Any, Dict, Optional
 
-class GameSchemaValidator:
-    def __init__(self, required_keys: List[str]):
-        self.required_keys = required_keys
-        self.pattern = re.compile(r'^[a-zA-Z0-9_]{3,20}$')
+logger = logging.getLogger('game-performance-36')
 
-    def validate_entity(self, data: Dict[str, Any]) -> bool:
-        if not all(key in data for key in self.required_keys):
-            return False
-        return all(isinstance(v, str) and self.pattern.match(v) for v in data.values())
+class InputValidator:
+    """Sanity check for raw game metrics payload."""
+    def __init__(self, schema: Dict[str, type]):
+        self.schema = schema
 
-def sanitize_input(user_input: str) -> str:
-    return ''.join(char for char in user_input if char.isalnum())
+    def validate(self, payload: Any) -> Optional[Dict[str, Any]]:
+        try:
+            if not isinstance(payload, dict):
+                raise ValueError(f"Payload must be dict, got {type(payload).__name__}")
+            
+            cleaned = {}
+            for key, expected_type in self.schema.items():
+                value = payload.get(key)
+                if value is None or not isinstance(value, expected_type):
+                    raise TypeError(f"Field {key} missing or invalid type: {type(value)}")
+                cleaned[key] = value
+            return cleaned
+        except (ValueError, TypeError) as e:
+            logger.error(f"Invalid input frame dropped: {e}")
+            return None
 
-def check_frame_budget(fps: float, threshold: float = 60.0) -> bool:
-    return fps >= threshold
-
-class PerformanceConstraint:
-    def __init__(self, tolerance: float):
-        self.tolerance = tolerance
-
-    def check(self, val: float) -> bool:
-        return abs(val) < self.tolerance
-
-if __name__ == '__main__':
-    validator = GameSchemaValidator(['id', 'tag'])
-    print(validator.validate_entity({'id': 'p1', 'tag': 'warrior'}))
+def sanitize_tick_data(data: Any) -> Optional[Dict[str, Any]]:
+    """Quick validation for core frame metrics."""
+    validator = InputValidator({
+        "fps": int,
+        "frame_time": float,
+        "player_id": int
+    })
+    return validator.validate(data)
