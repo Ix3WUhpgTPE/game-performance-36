@@ -1,34 +1,35 @@
+import functools
 import logging
-from typing import Any, Dict, Optional
 
-logger = logging.getLogger('game-performance-36')
+def validate_frame_budget(ms_threshold=16.67):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            import time
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            duration = (time.perf_counter() - start) * 1000
+            if duration > ms_threshold:
+                logging.warning(f'Frame budget exceeded: {duration:.2f}ms in {func.__name__}')
+            return result
+        return wrapper
+    return decorator
 
-class InputValidator:
-    """Sanity check for raw game metrics payload."""
-    def __init__(self, schema: Dict[str, type]):
-        self.schema = schema
+def sanitize_input(data: dict, schema: dict):
+    """Enforces type safety on game state packets."""
+    clean = {}
+    for key, expected_type in schema.items():
+        val = data.get(key)
+        if isinstance(val, expected_type):
+            clean[key] = val
+        else:
+            clean[key] = expected_type()
+    return clean
 
-    def validate(self, payload: Any) -> Optional[Dict[str, Any]]:
-        try:
-            if not isinstance(payload, dict):
-                raise ValueError(f"Payload must be dict, got {type(payload).__name__}")
-            
-            cleaned = {}
-            for key, expected_type in self.schema.items():
-                value = payload.get(key)
-                if value is None or not isinstance(value, expected_type):
-                    raise TypeError(f"Field {key} missing or invalid type: {type(value)}")
-                cleaned[key] = value
-            return cleaned
-        except (ValueError, TypeError) as e:
-            logger.error(f"Invalid input frame dropped: {e}")
-            return None
+def clamp(value, min_val, max_val):
+    return max(min_val, min(value, max_val))
 
-def sanitize_tick_data(data: Any) -> Optional[Dict[str, Any]]:
-    """Quick validation for core frame metrics."""
-    validator = InputValidator({
-        "fps": int,
-        "frame_time": float,
-        "player_id": int
-    })
-    return validator.validate(data)
+def normalize_vector(vec: tuple):
+    import math
+    mag = math.sqrt(sum(x**2 for x in vec))
+    return tuple(x / mag for x in vec) if mag > 0 else vec
