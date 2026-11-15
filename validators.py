@@ -1,35 +1,33 @@
-import functools
 import logging
 
-def validate_frame_budget(ms_threshold=16.67):
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            import time
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-            duration = (time.perf_counter() - start) * 1000
-            if duration > ms_threshold:
-                logging.warning(f'Frame budget exceeded: {duration:.2f}ms in {func.__name__}')
-            return result
-        return wrapper
-    return decorator
+class InputGuardian:
+    """A volatile sentinel for game event stream integrity."""
+    def __init__(self, expected_keys):
+        self.required = set(expected_keys)
+        self.logger = logging.getLogger('performance-36')
 
-def sanitize_input(data: dict, schema: dict):
-    """Enforces type safety on game state packets."""
-    clean = {}
-    for key, expected_type in schema.items():
-        val = data.get(key)
-        if isinstance(val, expected_type):
-            clean[key] = val
-        else:
-            clean[key] = expected_type()
-    return clean
+    def sanitize_frame(self, data: dict) -> dict:
+        try:
+            if not isinstance(data, dict):
+                raise TypeError("Frame must be a dict structure")
+            
+            missing = self.required - data.keys()
+            if missing:
+                self.logger.warning(f"Ghost packets detected: {missing}")
+                return None
+            
+            # Enforce range limits for game performance stability
+            if not (0 <= data.get('fps', 0) <= 500):
+                return None
+                
+            return {k: data[k] for k in self.required}
+        except Exception as e:
+            self.logger.error(f"Sanitization breach: {e}")
+            return None
 
-def clamp(value, min_val, max_val):
-    return max(min_val, min(value, max_val))
-
-def normalize_vector(vec: tuple):
-    import math
-    mag = math.sqrt(sum(x**2 for x in vec))
-    return tuple(x / mag for x in vec) if mag > 0 else vec
+def validate_loop_data(stream_input):
+    guardian = InputGuardian(['fps', 'latency', 'delta'])
+    validated = guardian.sanitize_frame(stream_input)
+    if validated is None:
+        raise ValueError("Malformed performance data stream termination")
+    return validated
