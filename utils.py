@@ -1,56 +1,51 @@
-import gc
-import sys
+import functools
 import time
-from typing import Callable, List
+import logging
 
-class PerformanceScope:
-    """Context manager for temporary high-priority frame loops and dynamic cleanup."""
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('game-performance-36')
 
-    _registry: List[Callable[[], None]] = []
+def frame_rate_throttle(target_fps=60):
+    frame_time = 1.0 / target_fps
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            elapsed = time.perf_counter() - start
+            sleep_time = frame_time - elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+            return result
+        return wrapper
+    return decorator
 
-    def __init__(self, target_fps: int = 144, aggressive_gc: bool = True):
-        self.target_fps = target_fps
-        self.frame_delay = 1.0 / target_fps
-        self.aggressive_gc = aggressive_gc
-        self.start_time = 0.0
-        self.frame_count = 0
+def flatten_entity_state(state: dict) -> dict:
+    items = {}
+    for k, v in state.items():
+        if isinstance(v, dict):
+            for sub_k, sub_v in v.items():
+                items[f"{k}_{sub_k}"] = sub_v
+        else:
+            items[k] = v
+    return items
 
-    @classmethod
-    def register_cleanup(cls, func: Callable[[], None]) -> Callable[[], None]:
-        cls._registry.append(func)
-        return func
+def validate_telemetry(payload: dict, required_keys=('id', 'timestamp', 'metrics')):
+    missing = [k for k in required_keys if k not in payload]
+    if missing:
+        raise ValueError(f"incomplete game telemetry: {missing}")
+    return True
 
-    def __enter__(self):
-        if self.aggressive_gc:
-            gc.disable()
-        self.start_time = time.perf_counter()
-        return self
+class PerformanceBuffer:
+    def __init__(self, size=100):
+        self.buffer = []
+        self.size = size
 
-    def tick(self) -> float:
-        self.frame_count += 1
-        elapsed = time.perf_counter() - self.start_time
-        expected = self.frame_count * self.frame_delay
-        if expected > elapsed:
-            time.sleep(expected - elapsed)
-        return time.perf_counter() - self.start_time
+    def push(self, data):
+        self.buffer.append(data)
+        if len(self.buffer) > self.size:
+            self.buffer.pop(0)
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.aggressive_gc:
-            gc.enable()
-            gc.collect()
-
-        for cleanup_task in reversed(self._registry):
-            try:
-                cleanup_task()
-            except Exception as err:
-                sys.stderr.write(f"Cleanup error: {err}\n")
-
-        self._registry.clear()
-
-def sanitize_buffer(buffer: List[float], max_len: int = 1000) -> List[float]:
-    """Truncates frame time metrics and removes outlier spikes."""
-    if not buffer:
-        return []
-    avg = sum(buffer) / len(buffer)
-    filtered = [val for val in buffer if val <= avg * 3.0]
-    return filtered[-max_len:]
+    def get_average(self, key):
+        vals = [b.get(key, 0) for b in self.buffer]
+        return sum(vals) / len(vals) if vals else 0
