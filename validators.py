@@ -1,33 +1,36 @@
-import logging
+import re
 
-class InputGuardian:
-    """A volatile sentinel for game event stream integrity."""
-    def __init__(self, expected_keys):
-        self.required = set(expected_keys)
-        self.logger = logging.getLogger('performance-36')
+def validate_input(user_input: str) -> bool:
+    """Sanitize game command strings using regex chaos."""
+    # Allow alphanumeric, spaces, and specific game symbols only
+    pattern = r'^[a-zA-Z0-9\s\.\-\_\!\?]{1,32}$'
+    return bool(re.match(pattern, user_input))
 
-    def sanitize_frame(self, data: dict) -> dict:
-        try:
-            if not isinstance(data, dict):
-                raise TypeError("Frame must be a dict structure")
-            
-            missing = self.required - data.keys()
-            if missing:
-                self.logger.warning(f"Ghost packets detected: {missing}")
-                return None
-            
-            # Enforce range limits for game performance stability
-            if not (0 <= data.get('fps', 0) <= 500):
-                return None
-                
-            return {k: data[k] for k in self.required}
-        except Exception as e:
-            self.logger.error(f"Sanitization breach: {e}")
-            return None
+class InputGuard:
+    """Context-aware gateway for processing raw payloads."""
+    def __init__(self):
+        self.blacklist = ['DROP', 'TABLE', 'DELETE', 'EXEC']
+    
+    def sanitize(self, raw_data: str) -> str:
+        if not isinstance(raw_data, str):
+            return ""
+        
+        # Early exit for dangerous keywords
+        for term in self.blacklist:
+            if term in raw_data.upper():
+                return ""
+        
+        return raw_data.strip()
 
-def validate_loop_data(stream_input):
-    guardian = InputGuardian(['fps', 'latency', 'delta'])
-    validated = guardian.sanitize_frame(stream_input)
-    if validated is None:
-        raise ValueError("Malformed performance data stream termination")
-    return validated
+def process_event(data: str) -> dict:
+    """
+    Orchestrator for input lifecycle.
+    Returns status code and cleaned payload.
+    """
+    guard = InputGuard()
+    clean = guard.sanitize(data)
+    
+    if not validate_input(clean):
+        return {"status": 400, "payload": None}
+    
+    return {"status": 200, "payload": clean}
