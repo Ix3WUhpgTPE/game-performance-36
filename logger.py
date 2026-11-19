@@ -1,32 +1,34 @@
 import logging
 from logging.handlers import RotatingFileHandler
-import os
+import sys
+from pathlib import Path
 
-def setup_game_logger(name: str = 'perf_tracker', log_file: str = 'performance.log') -> logging.Logger:
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-    
-    formatter = logging.Formatter(
-        '[%(asctime)s] {%(levelname)s} (%(process)d) -> %(message)s',
-        datefmt='%H:%M:%S'
-    )
+class GamingLogger:
+    def __init__(self, name='game-performance-36', log_file='performance.log'):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
+        
+        log_path = Path(log_file)
+        
+        formatter = logging.Formatter(
+            '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
+            datefmt='%H:%M:%S'
+        )
 
-    # Rotation logic for performance spikes to keep logs manageable
-    handler = RotatingFileHandler(
-        log_file, 
-        maxBytes=5 * 1024 * 1024, 
-        backupCount=3
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-
-    # Stream logs to console if we are in development mode
-    if os.getenv('DEV_MODE', 'False') == 'True':
-        console_handler = logging.StreamHandler()
+        console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+        self.logger.addHandler(console_handler)
 
-    return logger
+        file_handler = RotatingFileHandler(
+            log_path, maxBytes=1024 * 1024 * 5, backupCount=3
+        )
+        file_handler.setFormatter(formatter)
+        self.logger.addHandler(file_handler)
 
-# Instantiate core performance logger
-perf_logger = setup_game_logger()
+    def get_logger(self):
+        return self.logger
+
+def setup_logger():
+    return GamingLogger().get_logger()
+
+log = setup_logger()
