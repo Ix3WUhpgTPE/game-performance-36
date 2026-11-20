@@ -1,35 +1,28 @@
-from typing import List, Dict, Union, Callable
+import math
+from typing import List, Dict, Union
 
-class FrameProcessor:
-    """Advanced heuristic processor for game engine frame timings."""
+class TelemetryCruncher:
+    def __init__(self, sensitivity: float = 1.0):
+        self.sensitivity = sensitivity
 
-    def __init__(self, target_fps: int = 60) -> None:
-        self.target_frame_time: float = 1.0 / target_fps
-        self.history: List[float] = []
+    def smooth_input_data(self, samples: List[float]) -> List[float]:
+        if not samples:
+            return []
+        return [math.tanh(x * self.sensitivity) for x in samples]
 
-    def ingest_frame(self, delta: float) -> bool:
-        """Check if frame delta exceeds target budget."""
-        self.history.append(delta)
-        return delta > self.target_frame_time
+    def calculate_dps_burst(self, hits: List[Dict[str, float]], window_size: int = 5) -> float:
+        if len(hits) < window_size:
+            return sum(h['damage'] for h in hits)
+        
+        slices = [sum(h['damage'] for h in hits[i:i+window_size]) 
+                  for i in range(len(hits) - window_size + 1)]
+        return max(slices) if slices else 0.0
 
-    def get_performance_metric(self, strategy: Callable[[List[float]], float]) -> float:
-        """Execute custom analysis strategy on recorded frame data."""
-        if not self.history:
-            return 0.0
-        return strategy(self.history)
+    @staticmethod
+    def normalize_vectors(data: List[List[float]]) -> List[List[float]]:
+        return [[v / math.sqrt(sum(x**2 for x in vec)) for v in vec] for vec in data]
 
-def compute_jank_factor(data: List[float]) -> float:
-    """Calculate variance coefficient to detect frame stuttering."""
-    mean_val: float = sum(data) / len(data)
-    variance: float = sum((x - mean_val) ** 2 for x in data) / len(data)
-    return variance ** 0.5
-
-def run_pipeline(frame_deltas: List[float]) -> Dict[str, Union[float, bool]]:
-    """Orchestrate processing of engine telemetry data."""
-    processor = FrameProcessor()
-    critical_frames: int = sum(1 for d in frame_deltas if processor.ingest_frame(d))
-    
-    return {
-        "jank": compute_jank_factor(frame_deltas),
-        "has_stutter": critical_frames > (len(frame_deltas) * 0.05)
-    }
+def process_game_state(payload: Union[List[float], Dict]) -> Dict:
+    if isinstance(payload, list):
+        return {'status': 'processed', 'data': TelemetryCruncher().smooth_input_data(payload)}
+    return {'status': 'error', 'reason': 'invalid payload structure'}
