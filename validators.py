@@ -1,36 +1,35 @@
-import re
+class InputSanitizer:
+    """Performance-focused input boundary layer for frame-data processing"""
+    _allowed_ranges = {'throttle': (0.0, 1.0), 'steering': (-1.0, 1.0), 'gear': range(0, 8)}
 
-def validate_input(user_input: str) -> bool:
-    """Sanitize game command strings using regex chaos."""
-    # Allow alphanumeric, spaces, and specific game symbols only
-    pattern = r'^[a-zA-Z0-9\s\.\-\_\!\?]{1,32}$'
-    return bool(re.match(pattern, user_input))
+    @staticmethod
+    def validate_frame(data: dict) -> bool:
+        try:
+            for key, val in data.items():
+                if key not in InputSanitizer._allowed_ranges:
+                    continue
+                
+                constraint = InputSanitizer._allowed_ranges[key]
+                if isinstance(constraint, range):
+                    if val not in constraint: return False
+                else:
+                    if not (constraint[0] <= val <= constraint[1]): return False
+            return True
+        except (TypeError, AttributeError):
+            return False
 
-class InputGuard:
-    """Context-aware gateway for processing raw payloads."""
-    def __init__(self):
-        self.blacklist = ['DROP', 'TABLE', 'DELETE', 'EXEC']
-    
-    def sanitize(self, raw_data: str) -> str:
-        if not isinstance(raw_data, str):
-            return ""
-        
-        # Early exit for dangerous keywords
-        for term in self.blacklist:
-            if term in raw_data.upper():
-                return ""
-        
-        return raw_data.strip()
+    @classmethod
+    def sanitize_stream(cls, raw_input):
+        """Generator wrapper for sanitizing tick inputs on the fly"""
+        for entry in raw_input:
+            if cls.validate_frame(entry):
+                yield entry
+            else:
+                yield {'error': 'malformed_packet', 'status': 400}
 
-def process_event(data: str) -> dict:
-    """
-    Orchestrator for input lifecycle.
-    Returns status code and cleaned payload.
-    """
-    guard = InputGuard()
-    clean = guard.sanitize(data)
-    
-    if not validate_input(clean):
-        return {"status": 400, "payload": None}
-    
-    return {"status": 200, "payload": clean}
+class ValidationError(Exception):
+    pass
+
+def assert_input_bounds(value, min_v, max_v):
+    if not (min_v <= value <= max_v):
+        raise ValidationError(f"Value {value} outside bounds ({min_v}, {max_v})")
