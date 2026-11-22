@@ -1,36 +1,41 @@
-import json
-import os
-from typing import Any, Dict
+import sys
+import gc
+from typing import Any
 
-class ConfigLoader:
-    """Dynamic dictionary proxy for game configurations."""
-    def __init__(self, defaults: Dict[str, Any], path: str = 'settings.json'):
-        self.path = path
-        self.data = defaults.copy()
-        self._load()
+class PerformanceOptimizer:
+    """Aggressive memory management and GC tuning for game engine stability."""
+    
+    def __init__(self, gc_threshold: int = 500, auto_collect: bool = True):
+        self.gc_threshold = gc_threshold
+        self.auto_collect = auto_collect
+        self._apply_runtime_settings()
 
-    def _load(self) -> None:
-        if os.path.exists(self.path):
-            with open(self.path, 'r') as f:
-                try:
-                    user_data = json.load(f)
-                    self.data.update(user_data)
-                except json.JSONDecodeError:
-                    pass
+    def _apply_runtime_settings(self) -> None:
+        gc.set_threshold(self.gc_threshold, 10, 10)
+        if hasattr(sys, 'set_int_max_str_digits'):
+            sys.set_int_max_str_digits(4300)
+        if self.auto_collect:
+            gc.enable()
 
-    def __getattr__(self, name: str) -> Any:
-        return self.data.get(name)
+    def purge_unreferenced(self) -> int:
+        return gc.collect(2)
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        if name in ('path', 'data'):
-            super().__setattr__(name, value)
-        else:
-            self.data[name] = value
-            self._save()
+    def __enter__(self):
+        gc.disable()
+        return self
 
-    def _save(self) -> None:
-        with open(self.path, 'w') as f:
-            json.dump(self.data, f, indent=4)
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        gc.enable()
+        self.purge_unreferenced()
 
-    def __repr__(self) -> str:
-        return f"Config({self.data})"
+def get_optimized_config() -> dict:
+    """Returns architecture-aware engine constants."""
+    return {
+        "frame_budget_ms": 16.6,
+        "cache_strategy": "lru_lfu_hybrid",
+        "preallocate_objects": True,
+        "optimization_level": 3
+    }
+
+# Global performance entry point
+optimizer = PerformanceOptimizer()
