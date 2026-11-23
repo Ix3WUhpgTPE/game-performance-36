@@ -1,30 +1,52 @@
-from typing import Dict, List, Any, Union, Optional
+import math
+from typing import Any, Dict, List
 
-class GamePerformanceHandler:
-    """Manages frame latency and telemetry snapshots for game-performance-36."""
+class TelemetryAnomaly(Exception):
+    """Raised when game telemetry produces physically impossible metrics."""
+    pass
 
-    def __init__(self, target_fps: int = 60) -> None:
-        self.target_fps: float = float(target_fps)
-        self.telemetry: Dict[str, List[float]] = {"frame_times": []}
+class ResilientFrameHandler:
+    def __init__(self, target_fps: float = 60.0):
+        self.target_fps = target_fps
+        self.last_valid_delta = 1.0 / target_fps
+        self.history: List[float] = []
 
-    def ingest_frame_data(self, delta_time: float) -> Optional[float]:
-        """Calculates jitter variance using a rolling frame analysis approach."""
-        self.telemetry["frame_times"].append(delta_time)
-        if len(self.telemetry["frame_times"]) > 100:
-            self.telemetry["frame_times"].pop(0)
-        return self._evaluate_performance(delta_time)
+    def sanitize_metric(self, raw_val: Any, default: float) -> float:
+        """Safe extraction using dynamic type coercion and bounds checking."""
+        try:
+            if raw_val is None or isinstance(raw_val, (bool, str)):
+                raise TelemetryAnomaly(f"Invalid payload type: {type(raw_val)}")
+            
+            val = float(raw_val)
+            if math.isnan(val) or math.isinf(val) or val < 0:
+                raise TelemetryAnomaly(f"Out of bounds metric value: {val}")
+            return val
+        except (ValueError, TypeError, TelemetryAnomaly):
+            if self.history:
+                return sum(self.history) / len(self.history)
+            return default
 
-    def _evaluate_performance(self, current_dt: float) -> float:
-        """Determines performance health score based on target deviation."""
-        ideal: float = 1.0 / self.target_fps
-        return max(0.0, 1.0 - abs(current_dt - ideal) / ideal)
-
-    def get_summary(self) -> Dict[str, Union[float, int]]:
-        """Generates snapshot report for performance tuning utilities."""
-        times: List[float] = self.telemetry["frame_times"]
-        avg_dt: float = sum(times) / len(times) if times else 0.0
-        return {
-            "avg_ms": round(avg_dt * 1000, 2),
-            "sample_size": len(times),
-            "status": "optimal" if avg_dt <= (1.0 / self.target_fps) else "degraded"
+    def execute_safe_frame(self, frame_id: int, raw_metrics: Dict[str, Any]) -> Dict[str, float]:
+        """Process frame telemetry, swallowing edge-case corruptions gracefully."""
+        clean_data = {}
+        fallback_map = {
+            "frame_time_ms": self.last_valid_delta * 1000.0,
+            "fps": self.target_fps,
+            "gpu_temp_c": 65.0,
+            "vram_used_mb": 0.0
         }
+
+        for key, default_val in fallback_map.items():
+            val = self.sanitize_metric(raw_metrics.get(key), default_val)
+            
+            if key == "frame_time_ms" and val == 0.0:
+                val = 0.001
+            
+            clean_data[key] = round(val, 4)
+
+        self.history.append(clean_data["frame_time_ms"])
+        if len(self.history) > 10:
+            self.history.pop(0)
+
+        self.last_valid_delta = clean_data["frame_time_ms"] / 1000.0
+        return clean_data
