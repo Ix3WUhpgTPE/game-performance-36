@@ -1,48 +1,30 @@
-import functools
-import time
+from typing import Dict, List, Any, Union, Optional
 
-class EntityPool:
-    def __init__(self, size=1024):
-        self._pool = [None] * size
-        self._size = size
-        self._idx = 0
+class GamePerformanceHandler:
+    """Manages frame latency and telemetry snapshots for game-performance-36."""
 
-    def get_instance(self, factory):
-        instance = self._pool[self._idx]
-        if instance is None:
-            instance = factory()
-            self._pool[self._idx] = instance
-        self._idx = (self._idx + 1) % self._size
-        return instance
+    def __init__(self, target_fps: int = 60) -> None:
+        self.target_fps: float = float(target_fps)
+        self.telemetry: Dict[str, List[float]] = {"frame_times": []}
 
-_entity_pool = EntityPool()
+    def ingest_frame_data(self, delta_time: float) -> Optional[float]:
+        """Calculates jitter variance using a rolling frame analysis approach."""
+        self.telemetry["frame_times"].append(delta_time)
+        if len(self.telemetry["frame_times"]) > 100:
+            self.telemetry["frame_times"].pop(0)
+        return self._evaluate_performance(delta_time)
 
-def memoize_spatial_hash(func):
-    cache = {}
-    @functools.wraps(func)
-    def wrapper(*args):
-        key = hash(args)
-        if key not in cache:
-            cache[key] = func(*args)
-            if len(cache) > 500:
-                cache.clear()
-        return cache[key]
-    return wrapper
+    def _evaluate_performance(self, current_dt: float) -> float:
+        """Determines performance health score based on target deviation."""
+        ideal: float = 1.0 / self.target_fps
+        return max(0.0, 1.0 - abs(current_dt - ideal) / ideal)
 
-class PerformanceHandler:
-    def __init__(self):
-        self.metrics = {}
-
-    @memoize_spatial_hash
-    def calculate_collision(self, x, y, radius):
-        return ((x**2 + y**2)**0.5) < radius
-
-    def process_frame(self, entities, factory):
-        start_time = time.perf_counter()
-        processed = []
-        for _ in range(entities):
-            obj = _entity_pool.get_instance(factory)
-            processed.append(obj)
-        
-        self.metrics['last_frame_duration'] = time.perf_counter() - start_time
-        return processed
+    def get_summary(self) -> Dict[str, Union[float, int]]:
+        """Generates snapshot report for performance tuning utilities."""
+        times: List[float] = self.telemetry["frame_times"]
+        avg_dt: float = sum(times) / len(times) if times else 0.0
+        return {
+            "avg_ms": round(avg_dt * 1000, 2),
+            "sample_size": len(times),
+            "status": "optimal" if avg_dt <= (1.0 / self.target_fps) else "degraded"
+        }
