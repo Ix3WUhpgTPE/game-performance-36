@@ -1,28 +1,37 @@
-import math
-from typing import List, Dict, Union
+import time
+from dataclasses import dataclass
+from typing import List, Dict
 
-class TelemetryCruncher:
-    def __init__(self, sensitivity: float = 1.0):
-        self.sensitivity = sensitivity
+@dataclass(frozen=True)
+class FrameStats:
+    delta: float
+    load: float
 
-    def smooth_input_data(self, samples: List[float]) -> List[float]:
-        if not samples:
-            return []
-        return [math.tanh(x * self.sensitivity) for x in samples]
+class PerformanceProcessor:
+    def __init__(self, buffer_size: int = 60):
+        self._history: List[FrameStats] = []
+        self._buffer_size = buffer_size
 
-    def calculate_dps_burst(self, hits: List[Dict[str, float]], window_size: int = 5) -> float:
-        if len(hits) < window_size:
-            return sum(h['damage'] for h in hits)
+    def ingest(self, delta: float, load: float) -> None:
+        if len(self._history) >= self._buffer_size:
+            self._history.pop(0)
+        self._history.append(FrameStats(delta, load))
+
+    @property
+    def metrics(self) -> Dict[str, float]:
+        if not self._history:
+            return {'avg_fps': 0.0, 'avg_load': 0.0}
         
-        slices = [sum(h['damage'] for h in hits[i:i+window_size]) 
-                  for i in range(len(hits) - window_size + 1)]
-        return max(slices) if slices else 0.0
+        avg_delta = sum(f.delta for f in self._history) / len(self._history)
+        avg_load = sum(f.load for f in self._history) / len(self._history)
+        
+        return {
+            'avg_fps': 1.0 / avg_delta if avg_delta > 0 else 0.0,
+            'avg_load': round(avg_load, 2)
+        }
 
-    @staticmethod
-    def normalize_vectors(data: List[List[float]]) -> List[List[float]]:
-        return [[v / math.sqrt(sum(x**2 for x in vec)) for v in vec] for vec in data]
-
-def process_game_state(payload: Union[List[float], Dict]) -> Dict:
-    if isinstance(payload, list):
-        return {'status': 'processed', 'data': TelemetryCruncher().smooth_input_data(payload)}
-    return {'status': 'error', 'reason': 'invalid payload structure'}
+def process_frame_metrics(stream: List[tuple]) -> Dict[str, float]:
+    proc = PerformanceProcessor()
+    for d, l in stream:
+        proc.ingest(d, l)
+    return proc.metrics
